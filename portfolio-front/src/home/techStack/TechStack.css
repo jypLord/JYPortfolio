@@ -1,0 +1,55 @@
+.techGrid{
+  display: grid;
+  gap: 14px;
+
+  /* 한 칸 폭을 90~110px로 제한 */
+  grid-template-columns: repeat(auto-fit, 100px) !important;
+
+  /* 남는 공간이 있으면 가운데로 모으고 싶으면 center */
+  justify-content: center;
+}
+
+@media (min-width: 520px){
+  .techGrid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 760px){
+  .techGrid{ grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+
+.techCard{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  padding: 14px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.techIcon{
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  overflow: hidden; /* ✅ 박스 밖으로 절대 못 나가게 */
+}
+
+.techImg{
+  width: 160%;
+  height: 160%;
+  object-fit: contain; /* ✅ 로고 찌그러지지 않게 */
+  display: block;
+}
+
+.techName{
+  font-size: 13px;
+  color: var(--text);
+  text-align: center;
+  line-height: 1.2;
+}

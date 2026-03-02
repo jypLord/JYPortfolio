@@ -1,0 +1,63 @@
+.autoMain{
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 28px 20px 70px;
+}
+
+.autoChartSection{
+  margin-top: 18px;
+}
+
+.autoChartCard{
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  overflow: hidden;
+}
+
+.autoChartTop{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 14px 10px;
+}
+
+.autoMeta{
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.metaItem{
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.18);
+}
+
+.metaKey{
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+}
+
+.metaVal{
+  font-size: 13px;
+  color: rgba(255,255,255,0.9);
+  font-weight: 800;
+}
+
+.autoChartBody{
+  padding: 10px 12px 14px;
+}
+
+@media (max-width: 900px){
+  .autoChartTop{
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
