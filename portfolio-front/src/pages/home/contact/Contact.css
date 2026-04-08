@@ -1,0 +1,26 @@
+.contactCard {
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.contactRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.textLink {
+  color: var(--muted);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.textLink:hover {
+  color: var(--accent);
+}

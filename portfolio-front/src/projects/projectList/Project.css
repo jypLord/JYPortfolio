@@ -12,6 +12,19 @@
   box-shadow: var(--shadow);
 }
 
+.clickableCard {
+  cursor: pointer;
+}
+
+.clickableCard:hover {
+  transform: translateY(-2px);
+}
+
+.clickableCard:focus-visible {
+  outline: 2px solid rgba(255,255,255,0.65);
+  outline-offset: 3px;
+}
+
 .cardTop {
   display: flex;
   align-items: baseline;
@@ -46,10 +59,14 @@
 .linkRow { display: flex; gap: 12px; }
 
 .textLink {
-  color: rgba(255,255,255,0.85);
+  color: var(--accent);
   font-size: 14px;
+  font-weight: 700;
 }
-.textLink:hover { text-decoration: underline; }
+.textLink:hover {
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
 
 @media (max-width: 900px) {
   .cardGrid { grid-template-columns: 1fr; }

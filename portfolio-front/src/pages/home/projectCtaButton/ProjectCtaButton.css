@@ -1,0 +1,63 @@
+.projectCtaWrap{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  margin: 18px 0 10px;
+}
+
+.projectCtaBtn{
+  display:inline-flex;
+  align-items:center;
+  justify-content: center;
+  gap:8px;
+
+  min-height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
+
+  color: var(--accent);
+  text-decoration: none;
+
+  background: #fff;
+  border: 1.5px solid var(--accent);
+
+  box-shadow: 0 8px 20px rgba(3, 199, 90, 0.1);
+  transition: transform .22s ease, box-shadow .22s ease, background-color .22s ease, border-color .22s ease;
+}
+
+.projectCtaBtn:hover{
+  background: var(--accent-soft);
+  border-color: var(--accent-strong);
+  box-shadow: 0 14px 28px rgba(3, 199, 90, 0.18);
+  animation: projectCtaFloat 1.6s ease-in-out infinite;
+}
+
+.projectCtaText{
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: .2px;
+  line-height: 1;
+}
+
+.projectCtaArrow{
+  font-weight: 900;
+  opacity: .9;
+}
+
+@keyframes projectCtaFloat{
+  0%{
+    transform: translateY(-2px);
+  }
+  50%{
+    transform: translateY(-6px);
+  }
+  100%{
+    transform: translateY(-2px);
+  }
+}
+
+
+@media (max-width: 520px){
+  .projectCtaBtn{ width: 100%; justify-content:center; }
+  .projectCtaWrap{ padding: 0 16px; }
+}

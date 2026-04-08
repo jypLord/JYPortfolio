@@ -1,8 +1,8 @@
 import { Routes, Route } from "react-router-dom";
 
-import HomePage from "./home/HomePage.jsx";
+import HomePage from "./pages/home/HomePage.jsx";
 import ProjectListPage from "./projects/ProjectListPage.jsx";
-import AutoInvestPage from "./projects/autoInvest/AutoInvestPage.jsx";
+import AutoInvestPage from "./pages/AutoInvestPage/AutoInvestPage.jsx";
 
 export default function App() {
   return (

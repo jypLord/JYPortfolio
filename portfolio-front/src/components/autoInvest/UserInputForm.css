@@ -1,0 +1,77 @@
+.aiForm{
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.aiFormTitle{
+  margin: 0 0 12px;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.aiFormBody{
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.aiGrid{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.aiField{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aiLabel{
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.aiInput{
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: #f9fbfa;
+  color: var(--text);
+  padding: 0 12px;
+  outline: none;
+}
+
+.aiInput:focus{
+  border-color: rgba(3, 199, 90, 0.48);
+  box-shadow: 0 0 0 6px rgba(3, 199, 90, 0.12);
+}
+
+.aiSubmitBtn{
+  align-self: flex-end;
+  min-width: 128px;
+  height: 44px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 12px 24px rgba(3, 199, 90, 0.18);
+  transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+
+.aiSubmitBtn:hover{
+  background: var(--accent-strong);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px rgba(3, 199, 90, 0.22);
+}
+
+@media (max-width: 900px){
+  .aiGrid{ grid-template-columns: 1fr; }
+  .aiSubmitBtn{ width: 100%; }
+}

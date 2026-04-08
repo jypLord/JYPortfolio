@@ -1,0 +1,230 @@
+.autoMain{
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 96px 20px 70px;
+}
+
+.autoWatchSection,
+.autoChartCard{
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.autoWatchSection{
+  margin-top: 18px;
+  padding: 16px;
+}
+
+.autoWatchHeader{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.autoSectionTitle{
+  margin: 0;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.autoSectionDesc{
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.autoStartBtn{
+  min-width: 132px;
+  height: 44px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 12px 24px rgba(3, 199, 90, 0.18);
+  transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+
+.autoStartBtn:hover:not(:disabled){
+  background: var(--accent-strong);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px rgba(3, 199, 90, 0.22);
+}
+
+.autoStartBtn:disabled{
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.autoFeedback{
+  margin: 14px 0 0;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.autoFeedback.isError{
+  color: #ffbdbd;
+}
+
+.autoEmptyState{
+  margin-top: 16px;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px dashed rgba(3, 199, 90, 0.24);
+  color: var(--muted);
+  text-align: center;
+  background: #fbfefc;
+}
+
+.autoWatchList{
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.autoWatchItem{
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: #fbfefc;
+  cursor: pointer;
+  text-align: left;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+
+.autoWatchItem:hover{
+  transform: translateY(-1px);
+  border-color: rgba(3, 199, 90, 0.28);
+  background: #f5fcf8;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+}
+
+.autoWatchItem.isSelected{
+  border-color: rgba(3, 199, 90, 0.38);
+  background: #eff9f2;
+  box-shadow: 0 16px 34px rgba(3, 199, 90, 0.14);
+}
+
+.autoWatchItem:focus-visible{
+  outline: none;
+  border-color: rgba(3, 199, 90, 0.48);
+  box-shadow: 0 0 0 6px rgba(3, 199, 90, 0.12);
+}
+
+.autoWatchIndex{
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.autoWatchSymbol{
+  color: var(--text);
+  font-weight: 800;
+}
+
+.autoWatchMeta{
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.autoChartSection{
+  margin-top: 18px;
+}
+
+.autoChartGrid{
+  display: grid;
+  grid-template-columns: repeat(var(--chart-columns, 1), minmax(0, 1fr));
+  gap: 14px;
+}
+
+.autoChartCard{
+  overflow: hidden;
+}
+
+.autoChartTop{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px 10px;
+}
+
+.autoSymbolBadge{
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(3, 199, 90, 0.22);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.autoChartBody{
+  padding: 10px 12px 14px;
+}
+
+.autoChartStatus{
+  margin: 0;
+  padding: 0 14px 14px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.autoChartStatus.isError{
+  color: #ffbdbd;
+}
+
+@media (max-width: 1100px){
+  .autoChartGrid{
+    grid-template-columns: repeat(min(3, var(--chart-columns, 1)), minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px){
+  .autoWatchHeader{
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .autoStartBtn{
+    width: 100%;
+  }
+
+  .autoWatchItem{
+    grid-template-columns: 32px 1fr;
+  }
+
+  .autoChartGrid{
+    grid-template-columns: repeat(min(2, var(--chart-columns, 1)), minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px){
+  .autoChartGrid{
+    grid-template-columns: 1fr;
+  }
+}

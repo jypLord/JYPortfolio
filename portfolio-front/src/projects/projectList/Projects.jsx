@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import "./Project.css";
 
 const projects = [
@@ -6,15 +7,18 @@ const projects = [
     period: "2개월",
     tags: ["WebSocket", "Spring WebFlux", "Redis", "AWS"],
     desc:
-        "실시간 시세 스트림을 처리하고 다수 동시 접속 상황에서 안정적으로 브로드캐스트하는 구조를 설계했습니다.",
+        "주가가 지정가 밑으로 떨어지면 자동으로 손절 한 후, 주가가 회복됐을 때 다시 재매수 하는 프로젝트입니다.",
     links: [
-      { label: "GitHub", href: "#" },
-      { label: "Demo", href: "#" },
+      { label: "GitHub", href: "https://github.com/jypLord/autoInvest" },
+
     ],
+    path: "/projects/autoInvest"
   }
 ];
 
 export default function Projects() {
+  const navigate = useNavigate();
+
   return (
       <section id="projects" className="section">
         <div className="sectionHead">
@@ -22,7 +26,19 @@ export default function Projects() {
 
         <div className="cardGrid">
           {projects.map((p) => (
-              <article key={p.title} className="card">
+              <article
+                  key={p.title}
+                  className="card clickableCard"
+                  onClick={() => navigate(p.path)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      navigate("/projects/autoInvest");
+                    }
+                  }}
+                  role="link"
+                  tabIndex={0}
+              >
                 <div className="cardTop">
                   <h3 className="h3">{p.title}</h3>
                   <span className="muted">{p.period}</span>
@@ -46,6 +62,7 @@ export default function Projects() {
                           href={l.href}
                           target="_blank"
                           rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
                       >
                         {l.label} →
                       </a>

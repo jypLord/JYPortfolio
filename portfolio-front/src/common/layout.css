@@ -12,8 +12,16 @@
   margin-bottom: 18px;
 }
 
+.h1 { margin: 0; font-size: 40px; line-height: 1.1; letter-spacing: -0.03em; }
 .h2 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
 .h3 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
+.pageTitleDepth {
+  color: var(--text);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9),
+    0 2px 0 rgba(3, 199, 90, 0.08),
+    0 10px 24px rgba(3, 199, 90, 0.12);
+}
 .desc { margin: 0; color: var(--muted); }
 .muted { color: var(--muted); font-size: 14px; }
 
