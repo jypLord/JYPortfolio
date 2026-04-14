@@ -15,7 +15,7 @@ function createInitialState(symbol) {
     return {
       series: [],
       isLoading: false,
-      fetchError: "API configuration is missing.",
+      fetchError: "API 설정이 없습니다.",
     };
   }
 
@@ -46,7 +46,7 @@ export default function useChartSeries(symbol) {
         setState((currentState) => ({
           ...currentState,
           isLoading: false,
-          fetchError: `Unable to load chart data. ${error.message}`,
+          fetchError: `차트 데이터를 불러오지 못했습니다. ${error.message}`,
         }));
       },
     });

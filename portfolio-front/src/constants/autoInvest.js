@@ -11,3 +11,4 @@ export const API_STREAM_PATH = (
 ).trim();
 
 export const HAS_API_CONFIG = API_STREAM_PATH.length > 0;
+export const MAX_WATCH_ITEMS = 1;

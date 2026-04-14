@@ -74,7 +74,7 @@ export function openChartSeriesStream(stockName, { onData, onError }) {
   };
 
   eventSource.onerror = () => {
-    onError(new Error("SSE connection failed"));
+    onError(new Error("SSE 연결에 실패했습니다."));
     eventSource.close();
   };
 
