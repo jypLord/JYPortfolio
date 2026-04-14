@@ -1,7 +1,6 @@
 import {
   API_BASE_URL,
-  API_CHART_PATH,
-  API_SAVE_PATH,
+  API_STREAM_PATH,
 } from "../constants/autoInvest";
 import {
   extractSeries,
@@ -19,22 +18,14 @@ function buildApiUrl(path) {
   return new URL(`${baseUrl}${normalizedPath}`).toString();
 }
 
-export function buildChartUrl(symbol, baseline) {
-  const url = new URL(buildApiUrl(API_CHART_PATH));
+export function buildChartUrl(stockName) {
+  const url = new URL(buildApiUrl(API_STREAM_PATH), window.location.origin);
 
-  if (symbol.trim()) {
-    url.searchParams.set("symbol", symbol.trim());
-  }
-
-  if (baseline != null) {
-    url.searchParams.set("baseline", String(baseline));
+  if (stockName.trim()) {
+    url.searchParams.set("stockName", stockName.trim());
   }
 
   return url.toString();
-}
-
-export function buildSaveUrl() {
-  return buildApiUrl(API_SAVE_PATH);
 }
 
 function normalizeSeriesPayload(payload) {
@@ -64,8 +55,8 @@ function mergeSeries(currentSeries, incomingSeries, limit = 70) {
     .slice(-limit);
 }
 
-export function openChartSeriesStream(symbol, baseline, { onData, onError }) {
-  const eventSource = new EventSource(buildChartUrl(symbol, baseline));
+export function openChartSeriesStream(stockName, { onData, onError }) {
+  const eventSource = new EventSource(buildChartUrl(stockName));
 
   eventSource.onmessage = (event) => {
     try {
@@ -93,18 +84,4 @@ export function openChartSeriesStream(symbol, baseline, { onData, onError }) {
     },
     mergeSeries,
   };
-}
-
-export async function saveWatchItem(item) {
-  const response = await fetch(buildSaveUrl(), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(item),
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
 }

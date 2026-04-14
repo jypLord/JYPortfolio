@@ -1,13 +1,11 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Navbar from "../../common/components/navbar/Navbar.jsx";
 import AutoInvestHeader from "../../components/autoInvest/AutoInvestHeader.jsx";
 import UserInputForm from "../../components/autoInvest/UserInputForm.jsx";
-import { HAS_API_CONFIG, MAX_WATCH_ITEMS } from "../../constants/autoInvest";
-import { saveWatchItem as saveWatchItemApi } from "../../services/autoInvestApi";
+import MonitoringChartCard from "../../components/autoInvest/MonitoringChartCard.jsx";
 import "./AutoInvestPage.css";
 
 let stockValidatorModulePromise;
-const MonitoringChartCard = lazy(() => import("../../components/autoInvest/MonitoringChartCard.jsx"));
 
 function loadStockValidatorModule() {
   if (!stockValidatorModulePromise) {
@@ -17,61 +15,29 @@ function loadStockValidatorModule() {
   return stockValidatorModulePromise;
 }
 
+function buildItemId(symbol, baseline) {
+  return `${symbol.trim().toUpperCase()}-${baseline}`;
+}
+
 export default function AutoInvestPage() {
   const [symbol, setSymbol] = useState("");
   const [buyAmount, setBuyAmount] = useState("");
   const [baseline, setBaseline] = useState("");
-  const [savedItems, setSavedItems] = useState([]);
-  const [editingItemId, setEditingItemId] = useState(null);
+  const [activeItem, setActiveItem] = useState(null);
   const [formMessage, setFormMessage] = useState("");
   const [formError, setFormError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [isMonitoring, setIsMonitoring] = useState(false);
   const stockValidatorRef = useRef(null);
 
-  const chartColumns = useMemo(() => {
-    const count = savedItems.length;
-
-    if (count <= 1) return 1;
-    if (count <= 5) return count;
-    return 5;
-  }, [savedItems.length]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    loadStockValidatorModule()
-      .then((module) => {
-        if (isMounted) {
-          stockValidatorRef.current = module;
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          stockValidatorRef.current = null;
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  async function handleSaveItem(nextItem) {
+  async function validateSymbol(nextSymbol) {
     const stockValidator =
       stockValidatorRef.current ?? await loadStockValidatorModule();
 
     stockValidatorRef.current = stockValidator;
 
-    if (!stockValidator.isValidStockName(nextItem.symbol)) {
-      throw new Error("상장되지 않은 종목명입니다.");
+    if (!stockValidator.isValidStockName(nextSymbol)) {
+      throw new Error("This stock symbol is not supported in the sample.");
     }
-
-    if (!HAS_API_CONFIG) {
-      return;
-    }
-
-    await saveWatchItemApi(nextItem);
   }
 
   async function handleSubmit(event) {
@@ -80,7 +46,6 @@ export default function AutoInvestPage() {
     const nextSymbol = symbol.trim();
     const nextBuyAmount = Number(buyAmount);
     const nextBaseline = Number(baseline);
-    const editingItem = savedItems.find((item) => item.id === editingItemId) ?? null;
 
     setFormMessage("");
     setFormError("");
@@ -92,73 +57,27 @@ export default function AutoInvestPage() {
       !Number.isFinite(nextBaseline) ||
       nextBaseline <= 0
     ) {
-      setFormError("종목 이름, 금액, 기준가를 올바르게 입력해 주세요.");
-      return;
-    }
-
-    const normalizedSymbol = nextSymbol.toLowerCase();
-    const duplicateItem = savedItems.find(
-      (item) => (
-        item.symbol.toLowerCase() === normalizedSymbol &&
-        item.id !== editingItemId
-      ),
-    );
-
-    if (duplicateItem) {
-      setFormError("이미 등록된 종목입니다.");
-      return;
-    }
-
-    const nextItem = {
-      id: editingItem?.id ?? `${nextSymbol}-${Date.now()}`,
-      symbol: nextSymbol,
-      buyAmount: Math.round(nextBuyAmount),
-      baseline: Math.round(nextBaseline),
-    };
-
-    if (
-      editingItem &&
-      editingItem.symbol.toLowerCase() === normalizedSymbol &&
-      editingItem.buyAmount === nextItem.buyAmount &&
-      editingItem.baseline === nextItem.baseline
-    ) {
-      setFormError("변경된 내용이 없습니다.");
-      return;
-    }
-
-    if (!editingItem && savedItems.length >= MAX_WATCH_ITEMS) {
-      setFormError("샘플에서는 한 종목만 등록할 수 있습니다. 실제 프로젝트에서는 10개 까지 동시 등록 가능합니다.");
+      setFormError("Enter a stock symbol, buy amount, and baseline price.");
       return;
     }
 
     setIsSaving(true);
 
     try {
-      await handleSaveItem(nextItem);
-      setSavedItems((current) => (
-        editingItem
-          ? current.map((item) => (item.id === editingItem.id ? nextItem : item))
-          : [...current, nextItem]
-      ));
-      setFormMessage(editingItem ? "종목 정보를 수정했습니다." : "종목을 저장했습니다.");
-      setSymbol("");
-      setBuyAmount("");
-      setBaseline("");
-      setEditingItemId(null);
+      await validateSymbol(nextSymbol);
+
+      setActiveItem({
+        id: buildItemId(nextSymbol, nextBaseline),
+        symbol: nextSymbol,
+        buyAmount: Math.round(nextBuyAmount),
+        baseline: Math.round(nextBaseline),
+      });
+      setFormMessage("Streaming chart data for the selected stock.");
     } catch (error) {
-      setFormError(`저장에 실패했습니다. ${error.message}`);
+      setFormError(`Unable to start monitoring. ${error.message}`);
     } finally {
       setIsSaving(false);
     }
-  }
-
-  function handleSelectItem(item) {
-    setEditingItemId(item.id);
-    setSymbol(item.symbol);
-    setBuyAmount(String(item.buyAmount));
-    setBaseline(String(item.baseline));
-    setFormMessage("선택한 종목 정보를 불러왔습니다.");
-    setFormError("");
   }
 
   return (
@@ -176,65 +95,54 @@ export default function AutoInvestPage() {
           onChangeBuyAmount={(value) => setBuyAmount(value.replace(/[^\d]/g, ""))}
           onChangeBaseline={(value) => setBaseline(value.replace(/[^\d]/g, ""))}
           onSubmit={handleSubmit}
-          submitLabel={isSaving ? "저장 중.." : editingItemId ? "수정하기" : "저장하기"}
+          submitLabel={isSaving ? "Loading..." : "Start monitoring"}
         />
 
-        <section className="autoWatchSection">
-          <div className="autoWatchHeader">
-            <div>
-              <h3 className="autoSectionTitle">저장한 종목</h3>
-              <p className="autoSectionDesc">
-                감시 시작을 누르면 차트가 표시됩니다.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              className="autoStartBtn"
-              onClick={() => setIsMonitoring(true)}
-              disabled={!savedItems.length}
-            >
-              감시 시작
-            </button>
+        <section className="autoConfigSection">
+          <div>
+            <h3 className="autoSectionTitle">Sample API flow</h3>
+            <p className="autoSectionDesc">
+              This page uses a single streaming endpoint:
+              {" "}
+              <code>api.jyportfolio.site/autoInvest?stockName=</code>.
+              The backend does not persist a watchlist in this sample.
+            </p>
           </div>
 
           {formError ? <p className="autoFeedback isError">{formError}</p> : null}
           {!formError && formMessage ? <p className="autoFeedback">{formMessage}</p> : null}
 
-          {!savedItems.length ? (
-            <div className="autoEmptyState">아직 저장한 종목이 없습니다.</div>
+          {activeItem ? (
+            <div className="autoCurrentConfig">
+              <div className="autoConfigGrid">
+                <div className="autoConfigItem">
+                  <span className="autoConfigLabel">Stock</span>
+                  <strong className="autoConfigValue">{activeItem.symbol}</strong>
+                </div>
+                <div className="autoConfigItem">
+                  <span className="autoConfigLabel">Buy amount</span>
+                  <strong className="autoConfigValue">
+                    {activeItem.buyAmount.toLocaleString()}
+                  </strong>
+                </div>
+                <div className="autoConfigItem">
+                  <span className="autoConfigLabel">Baseline</span>
+                  <strong className="autoConfigValue">
+                    {activeItem.baseline.toLocaleString()}
+                  </strong>
+                </div>
+              </div>
+            </div>
           ) : (
-            <ul className="autoWatchList">
-              {savedItems.map((item, index) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    className={`autoWatchItem${editingItemId === item.id ? " isSelected" : ""}`}
-                    onClick={() => handleSelectItem(item)}
-                  >
-                    <span className="autoWatchIndex">{index + 1}</span>
-                    <span className="autoWatchSymbol">{item.symbol}</span>
-                    <span className="autoWatchMeta">금액 {item.buyAmount.toLocaleString()}원</span>
-                    <span className="autoWatchMeta">기준가 {item.baseline.toLocaleString()}원</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <div className="autoEmptyState">
+              Submit one stock to initialize 10 candles and continue streaming live data.
+            </div>
           )}
         </section>
 
-        {isMonitoring && savedItems.length ? (
+        {activeItem ? (
           <section className="autoChartSection">
-            <Suspense fallback={<p className="autoChartStatus">차트 불러오는 중..</p>}>
-              <div
-                className="autoChartGrid"
-                style={{ "--chart-columns": chartColumns }}
-              >
-                {savedItems.map((item) => (
-                  <MonitoringChartCard key={item.id} item={item} />
-                ))}
-              </div>
-            </Suspense>
+            <MonitoringChartCard key={activeItem.id} item={activeItem} />
           </section>
         ) : null}
       </main>

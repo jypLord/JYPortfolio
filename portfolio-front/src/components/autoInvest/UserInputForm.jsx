@@ -8,42 +8,42 @@ export default function UserInputForm({
   onChangeBuyAmount,
   onChangeBaseline,
   onSubmit,
-  submitLabel = "저장",
+  submitLabel = "Start",
 }) {
   return (
     <section className="aiForm">
-      <h3 className="aiFormTitle">사용자 입력</h3>
+      <h3 className="aiFormTitle">Monitor one stock</h3>
 
       <form className="aiFormBody" onSubmit={onSubmit}>
         <div className="aiGrid">
           <label className="aiField">
-            <span className="aiLabel">종목 이름</span>
+            <span className="aiLabel">Stock symbol</span>
             <input
               className="aiInput"
               value={symbol}
               onChange={(event) => onChangeSymbol(event.target.value)}
-              placeholder="예: 삼성전자"
+              placeholder="AAPL"
             />
           </label>
 
           <label className="aiField">
-            <span className="aiLabel">금액</span>
+            <span className="aiLabel">Buy amount</span>
             <input
               className="aiInput"
               value={buyAmount}
               onChange={(event) => onChangeBuyAmount(event.target.value)}
-              placeholder="예: 1000000"
+              placeholder="1000000"
               inputMode="numeric"
             />
           </label>
 
           <label className="aiField">
-            <span className="aiLabel">기준가</span>
+            <span className="aiLabel">Baseline price</span>
             <input
               className="aiInput"
               value={baseline}
               onChange={(event) => onChangeBaseline(event.target.value)}
-              placeholder="예: 60000"
+              placeholder="60000"
               inputMode="numeric"
             />
           </label>

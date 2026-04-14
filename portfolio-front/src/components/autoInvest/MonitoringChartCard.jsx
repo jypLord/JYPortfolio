@@ -29,27 +29,30 @@ function hasReachedBaseline(previousPrice, nextPrice, baseline) {
 }
 
 export default function MonitoringChartCard({ item }) {
-  const { series, isLoading, fetchError } = useChartSeries(item.symbol, item.baseline);
+  const { series, isLoading, fetchError } = useChartSeries(item.symbol);
   const [simulatedPrice, setSimulatedPrice] = useState(null);
   const [isExecuted, setIsExecuted] = useState(false);
   const lastObservedPriceRef = useRef(null);
   const hasSeries = series.length > 0;
+  const latestClose = series[series.length - 1]?.close;
 
   useEffect(() => {
-    const latestClose = series[series.length - 1]?.close;
-
     if (!Number.isFinite(latestClose)) {
       return;
     }
 
     const previousPrice = lastObservedPriceRef.current;
-    if (hasReachedBaseline(previousPrice, latestClose, item.baseline)) {
-      setIsExecuted(true);
-    }
-
+    const shouldExecute = hasReachedBaseline(previousPrice, latestClose, item.baseline);
     lastObservedPriceRef.current = latestClose;
-    setSimulatedPrice(latestClose);
-  }, [item.baseline, series]);
+
+    queueMicrotask(() => {
+      setSimulatedPrice(latestClose);
+
+      if (shouldExecute) {
+        setIsExecuted(true);
+      }
+    });
+  }, [item.baseline, latestClose]);
 
   const chartData = useMemo(() => {
     if (!hasSeries || !Number.isFinite(simulatedPrice)) {
