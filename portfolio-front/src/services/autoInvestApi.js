@@ -11,6 +11,11 @@ import {
 function buildApiUrl(path) {
   const baseUrl = API_BASE_URL.replace(/\/$/, "");
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+
+  if (!baseUrl) {
+    return normalizedPath;
+  }
+
   return new URL(`${baseUrl}${normalizedPath}`).toString();
 }
 

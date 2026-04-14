@@ -169,6 +169,36 @@
   padding: 14px 14px 10px;
 }
 
+.autoChartControls{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.autoPriceBtn{
+  min-width: 96px;
+  height: 34px;
+  border: 1px solid rgba(3, 199, 90, 0.22);
+  border-radius: 12px;
+  background: #f8fffb;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.autoPriceBtn:hover:not(:disabled){
+  transform: translateY(-1px);
+  border-color: rgba(3, 199, 90, 0.38);
+  box-shadow: 0 10px 20px rgba(3, 199, 90, 0.12);
+}
+
+.autoPriceBtn:disabled{
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .autoSymbolBadge{
   display: inline-flex;
   align-items: center;
@@ -220,6 +250,19 @@
 
   .autoChartGrid{
     grid-template-columns: repeat(min(2, var(--chart-columns, 1)), minmax(0, 1fr));
+  }
+
+  .autoChartTop{
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .autoChartControls{
+    width: 100%;
+  }
+
+  .autoPriceBtn{
+    flex: 1;
   }
 }
 

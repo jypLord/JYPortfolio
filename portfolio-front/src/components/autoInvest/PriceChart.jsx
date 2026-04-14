@@ -49,7 +49,68 @@ function renderCandle({
   );
 }
 
-function CandleShapes({ xAxisMap, yAxisMap, offset, data }) {
+function CurrentPriceTag({ currentItem, currentPrice, xAxis, yAxis, offset, candleWidth, bandSize }) {
+  if (!currentItem) {
+    return null;
+  }
+
+  const currentXValue = xAxis.scale(currentItem.time);
+  const currentY = yAxis.scale(currentPrice);
+
+  if (!Number.isFinite(currentXValue) || !Number.isFinite(currentY)) {
+    return null;
+  }
+
+  const centerX = currentXValue + bandSize / 2;
+  const chartRight = (offset?.left ?? 0) + (offset?.width ?? 0);
+  const tagHeight = 28;
+  const tagWidth = 94;
+  const pointerGap = 10;
+  const bodyLeft = chartRight - tagWidth;
+  const tipX = Math.max(centerX + 10, bodyLeft - pointerGap);
+  const topY = currentY - tagHeight / 2;
+  const bottomY = currentY + tagHeight / 2;
+  const points = [
+    `${tipX},${currentY}`,
+    `${bodyLeft},${topY}`,
+    `${chartRight},${topY}`,
+    `${chartRight},${bottomY}`,
+    `${bodyLeft},${bottomY}`,
+  ].join(" ");
+
+  return (
+    <g key="current-price-tag">
+      <line
+        x1={centerX + candleWidth / 2 + 2}
+        x2={tipX}
+        y1={currentY}
+        y2={currentY}
+        stroke={CURRENT_PRICE_TAG_COLOR}
+        strokeWidth={1.5}
+        strokeOpacity={0.85}
+      />
+      <polygon
+        points={points}
+        fill={CURRENT_PRICE_TAG_COLOR}
+        stroke="rgba(3,199,90,0.24)"
+        strokeWidth={1}
+      />
+      <text
+        x={bodyLeft + (chartRight - bodyLeft) / 2}
+        y={currentY}
+        fill="#ffffff"
+        fontSize={12}
+        fontWeight={700}
+        textAnchor="middle"
+        dominantBaseline="central"
+      >
+        {Number(currentPrice).toLocaleString()}
+      </text>
+    </g>
+  );
+}
+
+function CandleShapes({ xAxisMap, yAxisMap, offset, data, currentPrice }) {
   const xAxis = Object.values(xAxisMap ?? {})[0];
   const yAxis = Object.values(yAxisMap ?? {})[0];
 
@@ -79,7 +140,6 @@ function CandleShapes({ xAxisMap, yAxisMap, offset, data }) {
         const closeY = yAxis.scale(item.close);
         const highY = yAxis.scale(item.high);
         const lowY = yAxis.scale(item.low);
-
         const top = Math.min(openY, closeY);
         const bottom = Math.max(openY, closeY);
         const bodyHeight = Math.max(2, bottom - top);
@@ -101,67 +161,15 @@ function CandleShapes({ xAxisMap, yAxisMap, offset, data }) {
         });
       })}
 
-      {(() => {
-        const currentItem = data[data.length - 1];
-        if (!currentItem) {
-          return null;
-        }
-
-        const currentXValue = xAxis.scale(currentItem.time);
-        const currentY = yAxis.scale(currentItem.close);
-
-        if (!Number.isFinite(currentXValue) || !Number.isFinite(currentY)) {
-          return null;
-        }
-
-        const centerX = currentXValue + bandSize / 2;
-        const chartRight = (offset?.left ?? 0) + (offset?.width ?? 0);
-        const tagHeight = 28;
-        const tagWidth = 86;
-        const pointerGap = 10;
-        const bodyLeft = chartRight - tagWidth;
-        const tipX = Math.max(centerX + 10, bodyLeft - pointerGap);
-        const topY = currentY - tagHeight / 2;
-        const bottomY = currentY + tagHeight / 2;
-        const points = [
-          `${tipX},${currentY}`,
-          `${bodyLeft},${topY}`,
-          `${chartRight},${topY}`,
-          `${chartRight},${bottomY}`,
-          `${bodyLeft},${bottomY}`,
-        ].join(" ");
-
-        return (
-          <g key="current-price-tag">
-            <line
-              x1={centerX + candleWidth / 2 + 2}
-              x2={tipX}
-              y1={currentY}
-              y2={currentY}
-              stroke={CURRENT_PRICE_TAG_COLOR}
-              strokeWidth={1.5}
-              strokeOpacity={0.85}
-            />
-            <polygon
-              points={points}
-              fill={CURRENT_PRICE_TAG_COLOR}
-              stroke="rgba(3,199,90,0.24)"
-              strokeWidth={1}
-            />
-            <text
-              x={bodyLeft + (chartRight - bodyLeft) / 2}
-              y={currentY}
-              fill="#ffffff"
-              fontSize={12}
-              fontWeight={700}
-              textAnchor="middle"
-              dominantBaseline="central"
-            >
-              {Number(currentItem.close).toLocaleString()}
-            </text>
-          </g>
-        );
-      })()}
+      <CurrentPriceTag
+        currentItem={data[data.length - 1]}
+        currentPrice={currentPrice}
+        xAxis={xAxis}
+        yAxis={yAxis}
+        offset={offset}
+        candleWidth={candleWidth}
+        bandSize={bandSize}
+      />
     </g>
   );
 }
@@ -181,17 +189,8 @@ function CandleTooltip({ active, payload, label }) {
   }
 
   return (
-    <div
-      style={{
-        background: "rgba(255,255,255,0.96)",
-        border: "1px solid rgba(3,199,90,0.18)",
-        borderRadius: 12,
-        color: "#1f2937",
-        padding: "12px 14px",
-        boxShadow: "0 12px 24px rgba(3,199,90,0.12)",
-      }}
-    >
-      <div style={{ color: "#6b7280", marginBottom: 8 }}>{label}</div>
+    <div className="aiChartTooltip">
+      <div className="aiChartTooltipLabel">{label}</div>
       <div>시가: {formatPrice(item.open)}</div>
       <div>고가: {formatPrice(item.high)}</div>
       <div>저가: {formatPrice(item.low)}</div>
@@ -200,11 +199,13 @@ function CandleTooltip({ active, payload, label }) {
   );
 }
 
-export default function PriceChart({ data, baseline }) {
+export default function PriceChart({ data, baseline, currentPrice, isExecuted }) {
   const baselineOk = Number.isFinite(baseline) && baseline > 0;
+  const currentPriceOk = Number.isFinite(currentPrice) && currentPrice > 0;
   const priceCandidates = [
     ...data.flatMap((item) => [item.low, item.high, item.open, item.close].filter(Number.isFinite)),
     ...(baselineOk ? [baseline] : []),
+    ...(currentPriceOk ? [currentPrice] : []),
   ];
   const minPrice = priceCandidates.length ? Math.min(...priceCandidates) : 0;
   const maxPrice = priceCandidates.length ? Math.max(...priceCandidates) : 0;
@@ -229,7 +230,7 @@ export default function PriceChart({ data, baseline }) {
           />
           <Tooltip content={<CandleTooltip />} cursor={{ stroke: "rgba(3,199,90,0.16)" }} />
           <Line dataKey="close" stroke="transparent" dot={false} activeDot={false} />
-          <Customized component={<CandleShapes data={data} />} />
+          <Customized component={<CandleShapes data={data} currentPrice={currentPriceOk ? currentPrice : data[data.length - 1]?.close} />} />
 
           {baselineOk && (
             <ReferenceLine
@@ -238,7 +239,7 @@ export default function PriceChart({ data, baseline }) {
               strokeWidth={2}
               strokeDasharray="4 4"
               label={{
-                value: `기준가 ${baseline.toLocaleString()}`,
+                value: `기준가 ${baseline.toLocaleString()}원`,
                 position: "insideTopRight",
                 fill: "#6b7280",
                 fontSize: 12,
@@ -247,6 +248,12 @@ export default function PriceChart({ data, baseline }) {
           )}
         </ComposedChart>
       </ResponsiveContainer>
+
+      {isExecuted ? (
+        <div className="aiExecutionNotice">
+          주문이 체결되었습니다
+        </div>
+      ) : null}
     </div>
   );
 }

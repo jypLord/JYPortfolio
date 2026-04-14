@@ -8,7 +8,7 @@ export default function Hero() {
             <div className="avatarWrap">
               <img
                   className="avatar"
-                  src="/profile.jpg"
+                  src="../../../../public/me.jpg"
                   alt="프로필 사진"
                   loading="eager"
               />

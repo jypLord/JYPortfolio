@@ -127,7 +127,7 @@ export default function AutoInvestPage() {
     }
 
     if (!editingItem && savedItems.length >= MAX_WATCH_ITEMS) {
-      setFormError("최대 10개까지 등록할 수 있습니다.");
+      setFormError("샘플에서는 한 종목만 등록할 수 있습니다. 실제 프로젝트에서는 10개 까지 동시 등록 가능합니다.");
       return;
     }
 
@@ -184,7 +184,7 @@ export default function AutoInvestPage() {
             <div>
               <h3 className="autoSectionTitle">저장한 종목</h3>
               <p className="autoSectionDesc">
-                최대 10개까지 등록할 수 있고, 감시 시작을 누르면 차트가 표시됩니다.
+                감시 시작을 누르면 차트가 표시됩니다.
               </p>
             </div>
 
@@ -225,7 +225,7 @@ export default function AutoInvestPage() {
 
         {isMonitoring && savedItems.length ? (
           <section className="autoChartSection">
-            <Suspense fallback={<p className="autoChartStatus">차트 모듈 불러오는 중..</p>}>
+            <Suspense fallback={<p className="autoChartStatus">차트 불러오는 중..</p>}>
               <div
                 className="autoChartGrid"
                 style={{ "--chart-columns": chartColumns }}
