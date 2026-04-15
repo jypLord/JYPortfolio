@@ -7,7 +7,7 @@ export const API_BASE_URL = (
 
 export const API_STREAM_PATH = (
   import.meta.env.VITE_AUTO_INVEST_STREAM_PATH ??
-  "/autoInvest"
+  "/projects/autoInvest"
 ).trim();
 
 export const HAS_API_CONFIG = API_STREAM_PATH.length > 0;
