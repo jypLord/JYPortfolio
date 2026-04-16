@@ -2,7 +2,6 @@ import "./PriceChart.css";
 import {
   CartesianGrid,
   ComposedChart,
-  Customized,
   Line,
   ReferenceLine,
   ResponsiveContainer,
@@ -10,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useXAxis, useYAxis, useOffset } from "recharts/es6/hooks";
 
 const CURRENT_PRICE_TAG_COLOR = "#03c75a";
 
@@ -49,15 +49,15 @@ function renderCandle({
   );
 }
 
-function CurrentPriceTag({ currentItem, currentPrice, xAxis, yAxis, offset, candleWidth, bandSize }) {
+function CurrentPriceTag({ currentItem, currentPrice, xAxis, yAxis, offset, candleWidth }) {
   if (!currentItem) {
     return null;
   }
 
-  const lastIndex = xAxis?.ticks?.length ? xAxis.ticks.length - 1 : -1;
-  const currentTick = lastIndex >= 0 ? xAxis.ticks[lastIndex] : null;
-  const currentXValue = currentTick?.coordinate ?? xAxis.scale?.(currentItem.time);
-  const currentY = yAxis.scale(currentPrice);
+  const currentIndex = xAxis?.ticks?.findIndex((tick) => tick.value === currentItem.time) ?? -1;
+  const currentTick = currentIndex >= 0 ? xAxis.ticks[currentIndex] : null;
+  const currentXValue = currentTick?.coordinate ?? xAxis?.scale?.(currentItem.time);
+  const currentY = yAxis?.scale?.(currentPrice);
 
   if (!Number.isFinite(currentXValue) || !Number.isFinite(currentY)) {
     return null;
@@ -112,11 +112,12 @@ function CurrentPriceTag({ currentItem, currentPrice, xAxis, yAxis, offset, cand
   );
 }
 
-function CandleShapes({ xAxisMap, yAxisMap, offset, data, currentPrice }) {
-  const xAxis = Object.values(xAxisMap ?? {})[0];
-  const yAxis = Object.values(yAxisMap ?? {})[0];
+function CandleOverlay({ data, currentPrice }) {
+  const xAxis = useXAxis();
+  const yAxis = useYAxis();
+  const offset = useOffset();
 
-  if (!xAxis?.scale || !yAxis?.scale || !data?.length) {
+  if (!xAxis?.scale || !yAxis?.scale || !offset || !data?.length) {
     return null;
   }
 
@@ -138,7 +139,8 @@ function CandleShapes({ xAxisMap, yAxisMap, offset, data, currentPrice }) {
   return (
     <g>
       {data.map((item, index) => {
-        const tickCoordinate = xAxis.ticks?.[index]?.coordinate;
+        const matchedTick = xAxis.ticks?.find((tick) => tick.value === item.time);
+        const tickCoordinate = matchedTick?.coordinate ?? xAxis.ticks?.[index]?.coordinate;
         const scaledCoordinate = xAxis.scale?.(item.time);
         const centerX = tickCoordinate ?? scaledCoordinate;
 
@@ -182,7 +184,6 @@ function CandleShapes({ xAxisMap, yAxisMap, offset, data, currentPrice }) {
         yAxis={yAxis}
         offset={offset}
         candleWidth={candleWidth}
-        bandSize={bandSize}
       />
     </g>
   );
@@ -244,7 +245,10 @@ export default function PriceChart({ data, baseline, currentPrice, isExecuted })
           />
           <Tooltip content={<CandleTooltip />} cursor={{ stroke: "rgba(3,199,90,0.16)" }} />
           <Line dataKey="close" stroke="transparent" dot={false} activeDot={false} />
-          <Customized component={<CandleShapes data={data} currentPrice={currentPriceOk ? currentPrice : data[data.length - 1]?.close} />} />
+          <CandleOverlay
+            data={data}
+            currentPrice={currentPriceOk ? currentPrice : data[data.length - 1]?.close}
+          />
 
           {baselineOk && (
             <ReferenceLine
