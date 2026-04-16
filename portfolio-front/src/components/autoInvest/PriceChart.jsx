@@ -54,14 +54,16 @@ function CurrentPriceTag({ currentItem, currentPrice, xAxis, yAxis, offset, cand
     return null;
   }
 
-  const currentXValue = xAxis.scale(currentItem.time);
+  const lastIndex = xAxis?.ticks?.length ? xAxis.ticks.length - 1 : -1;
+  const currentTick = lastIndex >= 0 ? xAxis.ticks[lastIndex] : null;
+  const currentXValue = currentTick?.coordinate ?? xAxis.scale?.(currentItem.time);
   const currentY = yAxis.scale(currentPrice);
 
   if (!Number.isFinite(currentXValue) || !Number.isFinite(currentY)) {
     return null;
   }
 
-  const centerX = currentXValue + bandSize / 2;
+  const centerX = currentXValue;
   const chartRight = (offset?.left ?? 0) + (offset?.width ?? 0);
   const tagHeight = 28;
   const tagWidth = 94;
@@ -118,7 +120,17 @@ function CandleShapes({ xAxisMap, yAxisMap, offset, data, currentPrice }) {
     return null;
   }
 
-  const bandSize = xAxis.bandSize || 12;
+  const bandSize =
+    xAxis.bandSize ||
+    xAxis.scale?.bandwidth?.() ||
+    (() => {
+      const ticks = xAxis.ticks ?? [];
+      if (ticks.length < 2) {
+        return 12;
+      }
+
+      return Math.max(1, Math.abs(ticks[1].coordinate - ticks[0].coordinate));
+    })();
   const candleWidth = Math.max(6, Math.min(16, bandSize * 0.55));
   const leftBound = offset?.left ?? 0;
   const rightBound = (offset?.left ?? 0) + (offset?.width ?? 0);
@@ -126,12 +138,14 @@ function CandleShapes({ xAxisMap, yAxisMap, offset, data, currentPrice }) {
   return (
     <g>
       {data.map((item, index) => {
-        const xValue = xAxis.scale(item.time);
-        if (!Number.isFinite(xValue)) {
+        const tickCoordinate = xAxis.ticks?.[index]?.coordinate;
+        const scaledCoordinate = xAxis.scale?.(item.time);
+        const centerX = tickCoordinate ?? scaledCoordinate;
+
+        if (!Number.isFinite(centerX)) {
           return null;
         }
 
-        const centerX = xValue + bandSize / 2;
         if (centerX < leftBound || centerX > rightBound) {
           return null;
         }
