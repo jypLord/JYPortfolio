@@ -58,7 +58,7 @@ function mergeSeries(currentSeries, incomingSeries, limit = 70) {
 export function openChartSeriesStream(stockName, { onData, onError }) {
   const eventSource = new EventSource(buildChartUrl(stockName));
 
-  eventSource.onmessage = (event) => {
+  function handleIncomingEvent(event) {
     try {
       const payload = JSON.parse(event.data);
       const nextSeries = normalizeSeriesPayload(payload);
@@ -71,7 +71,11 @@ export function openChartSeriesStream(stockName, { onData, onError }) {
     } catch (error) {
       onError(error);
     }
-  };
+  }
+
+  eventSource.onmessage = handleIncomingEvent;
+  eventSource.addEventListener("initialChart", handleIncomingEvent);
+  eventSource.addEventListener("stockPrice", handleIncomingEvent);
 
   eventSource.onerror = () => {
     onError(new Error("SSE 연결에 실패했습니다."));

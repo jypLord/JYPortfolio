@@ -31,9 +31,33 @@ function parseCompactDateTime(dateValue, timeValue) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function parseTimeLabelWithInstant(timeLabel, instantValue) {
+  if (!timeLabel || !instantValue) {
+    return null;
+  }
+
+  const instant = new Date(instantValue);
+  const normalizedLabel = String(timeLabel).trim();
+
+  if (Number.isNaN(instant.getTime()) || !/^\d{1,2}:\d{2}$/.test(normalizedLabel)) {
+    return null;
+  }
+
+  const [hoursText, minutesText] = normalizedLabel.split(":");
+  const parsed = new Date(instant);
+  parsed.setHours(Number(hoursText), Number(minutesText), 0, 0);
+
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function normalizeTimestamp(item, index) {
   const instantValue = item.instant ?? item.timestamp ?? item.datetime;
   const compactDateTime = parseCompactDateTime(item.date, item.time);
+  const timeBucket = parseTimeLabelWithInstant(item.timeLabel, instantValue);
+
+  if (timeBucket) {
+    return timeBucket.toISOString();
+  }
 
   if (typeof instantValue === "string" && instantValue.trim()) {
     return instantValue;
