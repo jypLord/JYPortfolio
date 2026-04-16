@@ -9,9 +9,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useXAxis, useYAxis, useOffset } from "recharts/es6/hooks";
 
 const CURRENT_PRICE_TAG_COLOR = "#03c75a";
+const CHART_HEIGHT = 320;
+const CHART_MARGIN = { top: 10, right: 96, left: 0, bottom: 28 };
+const OVERLAY_VIEWBOX_WIDTH = 1000;
 
 function renderCandle({
   item,
@@ -49,22 +51,43 @@ function renderCandle({
   );
 }
 
-function CurrentPriceTag({ currentItem, currentPrice, xAxis, yAxis, offset, candleWidth }) {
+function getYCoordinate(value, minDomain, maxDomain, top, height) {
+  if (!Number.isFinite(value) || !Number.isFinite(minDomain) || !Number.isFinite(maxDomain)) {
+    return null;
+  }
+
+  if (maxDomain <= minDomain) {
+    return top + height / 2;
+  }
+
+  const normalized = (value - minDomain) / (maxDomain - minDomain);
+  return top + height - normalized * height;
+}
+
+function CurrentPriceTag({
+  currentItem,
+  currentPrice,
+  candleWidth,
+  chartRight,
+  minDomain,
+  maxDomain,
+  plotTop,
+  plotHeight,
+  getXCoordinate,
+}) {
   if (!currentItem) {
     return null;
   }
 
-  const currentIndex = xAxis?.ticks?.findIndex((tick) => tick.value === currentItem.time) ?? -1;
-  const currentTick = currentIndex >= 0 ? xAxis.ticks[currentIndex] : null;
-  const currentXValue = currentTick?.coordinate ?? xAxis?.scale?.(currentItem.time);
-  const currentY = yAxis?.scale?.(currentPrice);
+  const currentIndex = getXCoordinate.indexOf(currentItem.timestamp);
+  const currentXValue = getXCoordinate.at(currentIndex);
+  const currentY = getYCoordinate(currentPrice, minDomain, maxDomain, plotTop, plotHeight);
 
   if (!Number.isFinite(currentXValue) || !Number.isFinite(currentY)) {
     return null;
   }
 
   const centerX = currentXValue;
-  const chartRight = (offset?.left ?? 0) + (offset?.width ?? 0);
   const tagHeight = 28;
   const tagWidth = 94;
   const pointerGap = 10;
@@ -112,50 +135,49 @@ function CurrentPriceTag({ currentItem, currentPrice, xAxis, yAxis, offset, cand
   );
 }
 
-function CandleOverlay({ data, currentPrice }) {
-  const xAxis = useXAxis();
-  const yAxis = useYAxis();
-  const offset = useOffset();
-
-  if (!xAxis?.scale || !yAxis?.scale || !offset || !data?.length) {
+function CandleOverlay({ data, currentPrice, yDomain }) {
+  if (!data?.length) {
     return null;
   }
 
-  const bandSize =
-    xAxis.bandSize ||
-    xAxis.scale?.bandwidth?.() ||
-    (() => {
-      const ticks = xAxis.ticks ?? [];
-      if (ticks.length < 2) {
-        return 12;
-      }
-
-      return Math.max(1, Math.abs(ticks[1].coordinate - ticks[0].coordinate));
-    })();
-  const candleWidth = Math.max(6, Math.min(16, bandSize * 0.55));
-  const leftBound = offset?.left ?? 0;
-  const rightBound = (offset?.left ?? 0) + (offset?.width ?? 0);
+  const plotLeft = CHART_MARGIN.left;
+  const plotTop = CHART_MARGIN.top;
+  const plotRight = OVERLAY_VIEWBOX_WIDTH - CHART_MARGIN.right;
+  const plotBottom = CHART_HEIGHT - CHART_MARGIN.bottom;
+  const plotWidth = plotRight - plotLeft;
+  const plotHeight = plotBottom - plotTop;
+  const minDomain = yDomain[0];
+  const maxDomain = yDomain[1];
+  const slotWidth = data.length > 1 ? plotWidth / (data.length - 1) : plotWidth;
+  const candleWidth = Math.max(6, Math.min(16, slotWidth * 0.5));
+  const xCoordinates = data.map((_, index) => plotLeft + slotWidth * index);
+  const getXCoordinate = {
+    at(index) {
+      return index >= 0 ? xCoordinates[index] : null;
+    },
+    indexOf(timestamp) {
+      return data.findIndex((item) => item.timestamp === timestamp);
+    },
+  };
 
   return (
-    <g>
+    <svg
+      className="aiChartOverlay"
+      viewBox={`0 0 ${OVERLAY_VIEWBOX_WIDTH} ${CHART_HEIGHT}`}
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
       {data.map((item, index) => {
-        const matchedTick = xAxis.ticks?.find((tick) => tick.value === item.time);
-        const tickCoordinate = matchedTick?.coordinate ?? xAxis.ticks?.[index]?.coordinate;
-        const scaledCoordinate = xAxis.scale?.(item.time);
-        const centerX = tickCoordinate ?? scaledCoordinate;
+        const centerX = xCoordinates[index];
+        const openY = getYCoordinate(item.open, minDomain, maxDomain, plotTop, plotHeight);
+        const closeY = getYCoordinate(item.close, minDomain, maxDomain, plotTop, plotHeight);
+        const highY = getYCoordinate(item.high, minDomain, maxDomain, plotTop, plotHeight);
+        const lowY = getYCoordinate(item.low, minDomain, maxDomain, plotTop, plotHeight);
 
-        if (!Number.isFinite(centerX)) {
+        if (![centerX, openY, closeY, highY, lowY].every(Number.isFinite)) {
           return null;
         }
 
-        if (centerX < leftBound || centerX > rightBound) {
-          return null;
-        }
-
-        const openY = yAxis.scale(item.open);
-        const closeY = yAxis.scale(item.close);
-        const highY = yAxis.scale(item.high);
-        const lowY = yAxis.scale(item.low);
         const top = Math.min(openY, closeY);
         const bottom = Math.max(openY, closeY);
         const bodyHeight = Math.max(2, bottom - top);
@@ -180,12 +202,15 @@ function CandleOverlay({ data, currentPrice }) {
       <CurrentPriceTag
         currentItem={data[data.length - 1]}
         currentPrice={currentPrice}
-        xAxis={xAxis}
-        yAxis={yAxis}
-        offset={offset}
         candleWidth={candleWidth}
+        chartRight={plotRight}
+        minDomain={minDomain}
+        maxDomain={maxDomain}
+        plotTop={plotTop}
+        plotHeight={plotHeight}
+        getXCoordinate={getXCoordinate}
       />
-    </g>
+    </svg>
   );
 }
 
@@ -230,8 +255,8 @@ export default function PriceChart({ data, baseline, currentPrice, isExecuted })
 
   return (
     <div className="aiChartWrap">
-      <ResponsiveContainer width="100%" height={320}>
-        <ComposedChart data={data} margin={{ top: 10, right: 96, left: 0, bottom: 10 }}>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+        <ComposedChart data={data} margin={CHART_MARGIN}>
           <CartesianGrid stroke="rgba(3,199,90,0.08)" vertical={false} />
           <XAxis
             dataKey="time"
@@ -245,10 +270,6 @@ export default function PriceChart({ data, baseline, currentPrice, isExecuted })
           />
           <Tooltip content={<CandleTooltip />} cursor={{ stroke: "rgba(3,199,90,0.16)" }} />
           <Line dataKey="close" stroke="transparent" dot={false} activeDot={false} />
-          <CandleOverlay
-            data={data}
-            currentPrice={currentPriceOk ? currentPrice : data[data.length - 1]?.close}
-          />
 
           {baselineOk && (
             <ReferenceLine
@@ -266,6 +287,11 @@ export default function PriceChart({ data, baseline, currentPrice, isExecuted })
           )}
         </ComposedChart>
       </ResponsiveContainer>
+      <CandleOverlay
+        data={data}
+        currentPrice={currentPriceOk ? currentPrice : data[data.length - 1]?.close}
+        yDomain={yDomain}
+      />
 
       {isExecuted ? (
         <div className="aiExecutionNotice">
