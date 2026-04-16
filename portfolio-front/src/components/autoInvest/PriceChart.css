@@ -1,6 +1,7 @@
 .aiChartWrap{
   position: relative;
   width: 100%;
+  overflow: visible;
 }
 
 .aiChartOverlay{

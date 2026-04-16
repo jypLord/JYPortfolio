@@ -41,7 +41,9 @@ function normalizeSeriesPayload(payload) {
   return singleItem ? [singleItem] : [];
 }
 
-function mergeSeries(currentSeries, incomingSeries, limit = 70) {
+const MAX_CANDLE_COUNT = 11;
+
+function mergeSeries(currentSeries, incomingSeries, limit = MAX_CANDLE_COUNT) {
   const byTimestamp = new Map(
     currentSeries.map((item) => [item.timestamp, item]),
   );

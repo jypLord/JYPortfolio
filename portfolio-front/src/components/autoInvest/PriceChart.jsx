@@ -3,7 +3,6 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -12,8 +11,15 @@ import {
 
 const CURRENT_PRICE_TAG_COLOR = "#03c75a";
 const CHART_HEIGHT = 320;
-const CHART_MARGIN = { top: 10, right: 96, left: 0, bottom: 28 };
+const CHART_MARGIN = { top: 12, right: 12, left: 4, bottom: 28 };
 const OVERLAY_VIEWBOX_WIDTH = 1000;
+const MIN_VISIBLE_RANGE_RATIO = 0.014;
+const MIN_VISIBLE_RANGE_ABSOLUTE = 700;
+const BASELINE_DISTANCE_LIMIT_MULTIPLIER = 0.95;
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
 
 function renderCandle({
   item,
@@ -64,6 +70,73 @@ function getYCoordinate(value, minDomain, maxDomain, top, height) {
   return top + height - normalized * height;
 }
 
+function getVisualScale(data, baseline, currentPrice) {
+  const lastClose = data[data.length - 1]?.close;
+  const anchorPrice = Number.isFinite(currentPrice) && currentPrice > 0 ? currentPrice : lastClose;
+  const candlePrices = data.flatMap((item) => [item.low, item.high, item.open, item.close].filter(Number.isFinite));
+  const visiblePrices = [...candlePrices, ...(Number.isFinite(anchorPrice) ? [anchorPrice] : [])];
+  const minVisiblePrice = visiblePrices.length ? Math.min(...visiblePrices) : 0;
+  const maxVisiblePrice = visiblePrices.length ? Math.max(...visiblePrices) : 0;
+  const visibleRange = Math.max(
+    maxVisiblePrice - minVisiblePrice,
+    (anchorPrice || maxVisiblePrice || 0) * MIN_VISIBLE_RANGE_RATIO,
+    MIN_VISIBLE_RANGE_ABSOLUTE,
+  );
+  const baselineGapLimit = visibleRange * BASELINE_DISTANCE_LIMIT_MULTIPLIER;
+  const rawBaselineGap = Number.isFinite(baseline) && Number.isFinite(anchorPrice) ? baseline - anchorPrice : null;
+  const baselineGap = Number.isFinite(rawBaselineGap)
+    ? clamp(rawBaselineGap, -baselineGapLimit, baselineGapLimit)
+    : null;
+  const baselineDisplayValue = Number.isFinite(baselineGap) ? anchorPrice + baselineGap : null;
+  const pricePadding = Math.max(visibleRange * 0.2, (anchorPrice || maxVisiblePrice || 0) * 0.004, 240);
+  const minDomainCandidate = Number.isFinite(baselineDisplayValue)
+    ? Math.min(minVisiblePrice - pricePadding, baselineDisplayValue - pricePadding)
+    : minVisiblePrice - pricePadding;
+  const maxDomainCandidate = Number.isFinite(baselineDisplayValue)
+    ? Math.max(maxVisiblePrice + pricePadding, baselineDisplayValue + pricePadding)
+    : maxVisiblePrice + pricePadding;
+
+  return {
+    yDomain: [Math.max(0, minDomainCandidate), maxDomainCandidate],
+    baselineDisplayValue,
+  };
+}
+
+function BaselineMarker({ baseline, baselineDisplayValue, minDomain, maxDomain, plotLeft, plotRight, plotTop, plotHeight }) {
+  if (!Number.isFinite(baseline) || !Number.isFinite(baselineDisplayValue)) {
+    return null;
+  }
+
+  const baselineY = getYCoordinate(baselineDisplayValue, minDomain, maxDomain, plotTop, plotHeight);
+  if (!Number.isFinite(baselineY)) {
+    return null;
+  }
+
+  return (
+    <g key="baseline-marker">
+      <line
+        x1={plotLeft}
+        x2={plotRight}
+        y1={baselineY}
+        y2={baselineY}
+        stroke="#ffb84d"
+        strokeWidth={2}
+        strokeDasharray="4 4"
+      />
+      <text
+        x={plotRight - 4}
+        y={baselineY - 8}
+        fill="#6b7280"
+        fontSize={12}
+        fontWeight={600}
+        textAnchor="end"
+      >
+        {`\uAE30\uC900\uAC00 ${baseline.toLocaleString()}\uC6D0`}
+      </text>
+    </g>
+  );
+}
+
 function CurrentPriceTag({
   currentItem,
   currentPrice,
@@ -90,30 +163,22 @@ function CurrentPriceTag({
   const centerX = currentXValue;
   const tagHeight = 28;
   const tagWidth = 94;
-  const pointerGap = 10;
-  const bodyLeft = chartRight - tagWidth;
-  const tipX = Math.max(centerX + 10, bodyLeft - pointerGap);
+  const tagGap = 18;
+  const bodyLeft = chartRight + tagGap;
+  const bodyRight = bodyLeft + tagWidth;
+  const tipX = chartRight + 4;
   const topY = currentY - tagHeight / 2;
   const bottomY = currentY + tagHeight / 2;
   const points = [
     `${tipX},${currentY}`,
     `${bodyLeft},${topY}`,
-    `${chartRight},${topY}`,
-    `${chartRight},${bottomY}`,
+    `${bodyRight},${topY}`,
+    `${bodyRight},${bottomY}`,
     `${bodyLeft},${bottomY}`,
   ].join(" ");
 
   return (
     <g key="current-price-tag">
-      <line
-        x1={centerX + candleWidth / 2 + 2}
-        x2={tipX}
-        y1={currentY}
-        y2={currentY}
-        stroke={CURRENT_PRICE_TAG_COLOR}
-        strokeWidth={1.5}
-        strokeOpacity={0.85}
-      />
       <polygon
         points={points}
         fill={CURRENT_PRICE_TAG_COLOR}
@@ -121,7 +186,7 @@ function CurrentPriceTag({
         strokeWidth={1}
       />
       <text
-        x={bodyLeft + (chartRight - bodyLeft) / 2}
+        x={bodyLeft + tagWidth / 2}
         y={currentY}
         fill="#ffffff"
         fontSize={12}
@@ -135,7 +200,7 @@ function CurrentPriceTag({
   );
 }
 
-function CandleOverlay({ data, currentPrice, yDomain }) {
+function CandleOverlay({ data, currentPrice, baseline, baselineDisplayValue, yDomain }) {
   if (!data?.length) {
     return null;
   }
@@ -149,7 +214,7 @@ function CandleOverlay({ data, currentPrice, yDomain }) {
   const minDomain = yDomain[0];
   const maxDomain = yDomain[1];
   const slotWidth = data.length > 1 ? plotWidth / (data.length - 1) : plotWidth;
-  const candleWidth = Math.max(6, Math.min(16, slotWidth * 0.5));
+  const candleWidth = Math.max(12, Math.min(24, slotWidth * 0.72));
   const xCoordinates = data.map((_, index) => plotLeft + slotWidth * index);
   const getXCoordinate = {
     at(index) {
@@ -167,6 +232,17 @@ function CandleOverlay({ data, currentPrice, yDomain }) {
       preserveAspectRatio="none"
       aria-hidden="true"
     >
+      <BaselineMarker
+        baseline={baseline}
+        baselineDisplayValue={baselineDisplayValue}
+        minDomain={minDomain}
+        maxDomain={maxDomain}
+        plotLeft={plotLeft}
+        plotRight={plotRight}
+        plotTop={plotTop}
+        plotHeight={plotHeight}
+      />
+
       {data.map((item, index) => {
         const centerX = xCoordinates[index];
         const openY = getYCoordinate(item.open, minDomain, maxDomain, plotTop, plotHeight);
@@ -215,7 +291,7 @@ function CandleOverlay({ data, currentPrice, yDomain }) {
 }
 
 function formatPrice(value) {
-  return `${Number(value || 0).toLocaleString()}원`;
+  return `${Number(value || 0).toLocaleString()}\uC6D0`;
 }
 
 function CandleTooltip({ active, payload, label }) {
@@ -231,10 +307,10 @@ function CandleTooltip({ active, payload, label }) {
   return (
     <div className="aiChartTooltip">
       <div className="aiChartTooltipLabel">{label}</div>
-      <div>시가: {formatPrice(item.open)}</div>
-      <div>고가: {formatPrice(item.high)}</div>
-      <div>저가: {formatPrice(item.low)}</div>
-      <div>종가: {formatPrice(item.close)}</div>
+      <div>{`\uC2DC\uAC00: ${formatPrice(item.open)}`}</div>
+      <div>{`\uACE0\uAC00: ${formatPrice(item.high)}`}</div>
+      <div>{`\uC800\uAC00: ${formatPrice(item.low)}`}</div>
+      <div>{`\uC885\uAC00: ${formatPrice(item.close)}`}</div>
     </div>
   );
 }
@@ -242,16 +318,12 @@ function CandleTooltip({ active, payload, label }) {
 export default function PriceChart({ data, baseline, currentPrice, isExecuted }) {
   const baselineOk = Number.isFinite(baseline) && baseline > 0;
   const currentPriceOk = Number.isFinite(currentPrice) && currentPrice > 0;
-  const priceCandidates = [
-    ...data.flatMap((item) => [item.low, item.high, item.open, item.close].filter(Number.isFinite)),
-    ...(baselineOk ? [baseline] : []),
-    ...(currentPriceOk ? [currentPrice] : []),
-  ];
-  const minPrice = priceCandidates.length ? Math.min(...priceCandidates) : 0;
-  const maxPrice = priceCandidates.length ? Math.max(...priceCandidates) : 0;
-  const range = Math.max(maxPrice - minPrice, maxPrice * 0.04, 1000);
-  const padding = Math.max(Math.ceil(range * 0.12), 500);
-  const yDomain = [Math.max(0, minPrice - padding), maxPrice + padding];
+  const resolvedCurrentPrice = currentPriceOk ? currentPrice : data[data.length - 1]?.close;
+  const { yDomain, baselineDisplayValue } = getVisualScale(
+    data,
+    baselineOk ? baseline : null,
+    resolvedCurrentPrice,
+  );
 
   return (
     <div className="aiChartWrap">
@@ -270,32 +342,19 @@ export default function PriceChart({ data, baseline, currentPrice, isExecuted })
           />
           <Tooltip content={<CandleTooltip />} cursor={{ stroke: "rgba(3,199,90,0.16)" }} />
           <Line dataKey="close" stroke="transparent" dot={false} activeDot={false} />
-
-          {baselineOk && (
-            <ReferenceLine
-              y={baseline}
-              stroke="#ffb84d"
-              strokeWidth={2}
-              strokeDasharray="4 4"
-              label={{
-                value: `기준가 ${baseline.toLocaleString()}원`,
-                position: "insideTopRight",
-                fill: "#6b7280",
-                fontSize: 12,
-              }}
-            />
-          )}
         </ComposedChart>
       </ResponsiveContainer>
       <CandleOverlay
         data={data}
-        currentPrice={currentPriceOk ? currentPrice : data[data.length - 1]?.close}
+        currentPrice={resolvedCurrentPrice}
+        baseline={baselineOk ? baseline : null}
+        baselineDisplayValue={baselineDisplayValue}
         yDomain={yDomain}
       />
 
       {isExecuted ? (
         <div className="aiExecutionNotice">
-          주문이 체결되었습니다
+          {"\uC8FC\uBB38\uC774 \uCCB4\uACB0\uB418\uC5C8\uC2B5\uB2C8\uB2E4."}
         </div>
       ) : null}
     </div>
