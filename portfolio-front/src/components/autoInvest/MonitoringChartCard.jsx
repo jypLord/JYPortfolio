@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PriceChart from "./PriceChart.jsx";
 import useChartSeries from "../../hooks/useChartSeries";
 
@@ -32,9 +32,31 @@ export default function MonitoringChartCard({ item }) {
   const { series, isLoading, fetchError } = useChartSeries(item.symbol);
   const [simulatedPrice, setSimulatedPrice] = useState(null);
   const [isExecuted, setIsExecuted] = useState(false);
+  const [hoveredAction, setHoveredAction] = useState("");
   const lastObservedPriceRef = useRef(null);
+  const executionHideTimerRef = useRef(null);
   const hasSeries = series.length > 0;
   const latestClose = series[series.length - 1]?.close;
+
+  function showExecutionNotice() {
+    if (executionHideTimerRef.current) {
+      window.clearTimeout(executionHideTimerRef.current);
+    }
+
+    setIsExecuted(true);
+    executionHideTimerRef.current = window.setTimeout(() => {
+      setIsExecuted(false);
+      executionHideTimerRef.current = null;
+    }, 3000);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (executionHideTimerRef.current) {
+        window.clearTimeout(executionHideTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!Number.isFinite(latestClose)) {
@@ -44,41 +66,19 @@ export default function MonitoringChartCard({ item }) {
     const previousPrice = lastObservedPriceRef.current;
     const shouldExecute = hasReachedBaseline(previousPrice, latestClose, item.baseline);
     lastObservedPriceRef.current = latestClose;
+    setSimulatedPrice(latestClose);
 
-    queueMicrotask(() => {
-      setSimulatedPrice(latestClose);
-
-      if (shouldExecute) {
-        setIsExecuted(true);
-      }
-    });
-  }, [item.baseline, latestClose]);
-
-  const chartData = useMemo(() => {
-    if (!hasSeries || !Number.isFinite(simulatedPrice)) {
-      return series;
+    if (shouldExecute) {
+      showExecutionNotice();
     }
-
-    const nextSeries = [...series];
-    const latestIndex = nextSeries.length - 1;
-    const latestItem = nextSeries[latestIndex];
-
-    nextSeries[latestIndex] = {
-      ...latestItem,
-      high: Math.max(latestItem.high, simulatedPrice),
-      low: Math.min(latestItem.low, simulatedPrice),
-      close: simulatedPrice,
-    };
-
-    return nextSeries;
-  }, [hasSeries, series, simulatedPrice]);
+  }, [item.baseline, latestClose]);
 
   function handleAdjustPrice(direction) {
     setSimulatedPrice((currentPrice) => {
       const nextPrice = adjustPriceByPercent(currentPrice, direction);
 
       if (hasReachedBaseline(currentPrice, nextPrice, item.baseline)) {
-        setIsExecuted(true);
+        showExecutionNotice();
       }
 
       lastObservedPriceRef.current = nextPrice;
@@ -91,29 +91,51 @@ export default function MonitoringChartCard({ item }) {
       <div className="autoChartTop">
         <div className="autoSymbolBadge">{item.symbol}</div>
         <div className="autoChartControls">
-          <button
-            type="button"
-            className="autoPriceBtn"
-            onClick={() => handleAdjustPrice("down")}
-            disabled={!hasSeries}
-          >
-            가격 내리기
-          </button>
-          <button
-            type="button"
-            className="autoPriceBtn"
-            onClick={() => handleAdjustPrice("up")}
-            disabled={!hasSeries}
-          >
-            가격 올리기
-          </button>
+          <div className="autoPriceBtnWrap">
+            <button
+              type="button"
+              className="autoPriceBtn"
+              onClick={() => handleAdjustPrice("down")}
+              onMouseEnter={() => setHoveredAction("down")}
+              onMouseLeave={() => setHoveredAction("")}
+              onFocus={() => setHoveredAction("down")}
+              onBlur={() => setHoveredAction("")}
+              disabled={!hasSeries}
+            >
+              {"\uAC00\uACA9 \uB0B4\uB9AC\uAE30"}
+            </button>
+            {hoveredAction === "down" ? (
+              <div className="autoPriceHint" role="tooltip">
+                {"\uC8FC\uAC00\uB97C 1% \uB0B4\uB9BD\uB2C8\uB2E4."}
+              </div>
+            ) : null}
+          </div>
+          <div className="autoPriceBtnWrap">
+            <button
+              type="button"
+              className="autoPriceBtn"
+              onClick={() => handleAdjustPrice("up")}
+              onMouseEnter={() => setHoveredAction("up")}
+              onMouseLeave={() => setHoveredAction("")}
+              onFocus={() => setHoveredAction("up")}
+              onBlur={() => setHoveredAction("")}
+              disabled={!hasSeries}
+            >
+              {"\uAC00\uACA9 \uC62C\uB9AC\uAE30"}
+            </button>
+            {hoveredAction === "up" ? (
+              <div className="autoPriceHint" role="tooltip">
+                {"\uC8FC\uAC00\uB97C 1% \uC62C\uB9BD\uB2C8\uB2E4."}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
       <div className="autoChartBody">
         {hasSeries ? (
           <PriceChart
-            data={chartData}
+            data={series}
             baseline={item.baseline}
             currentPrice={simulatedPrice}
             isExecuted={isExecuted}
@@ -121,9 +143,11 @@ export default function MonitoringChartCard({ item }) {
         ) : null}
       </div>
 
-      {isLoading ? <p className="autoChartStatus">불러오는 중...</p> : null}
+      {isLoading ? <p className="autoChartStatus">{"\uBD88\uB7EC\uC624\uB294 \uC911..."}</p> : null}
       {fetchError ? <p className="autoChartStatus isError">{fetchError}</p> : null}
-      {!isLoading && !fetchError && !hasSeries ? <p className="autoChartStatus">수신된 차트 데이터가 없습니다.</p> : null}
+      {!isLoading && !fetchError && !hasSeries ? (
+        <p className="autoChartStatus">{"\uC218\uC2E0\uB41C \uCC28\uD2B8 \uB370\uC774\uD130\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4."}</p>
+      ) : null}
     </article>
   );
 }

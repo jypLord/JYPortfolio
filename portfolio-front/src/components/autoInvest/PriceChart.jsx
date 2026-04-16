@@ -15,7 +15,12 @@ const CHART_MARGIN = { top: 12, right: 12, left: 4, bottom: 28 };
 const OVERLAY_VIEWBOX_WIDTH = 1000;
 const MIN_VISIBLE_RANGE_RATIO = 0.014;
 const MIN_VISIBLE_RANGE_ABSOLUTE = 700;
-const BASELINE_DISTANCE_LIMIT_MULTIPLIER = 0.95;
+const BASELINE_CANDLE_GAP_RATIO = 0.12;
+const BASELINE_CANDLE_GAP_ABSOLUTE = 180;
+const CURRENT_PRICE_TAG_WIDTH = 94;
+const CURRENT_PRICE_TAG_HEIGHT = 28;
+const CURRENT_PRICE_TAG_GAP = 22;
+const CURRENT_PRICE_TAG_TIP_OFFSET = 10;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -74,6 +79,8 @@ function getVisualScale(data, baseline, currentPrice) {
   const lastClose = data[data.length - 1]?.close;
   const anchorPrice = Number.isFinite(currentPrice) && currentPrice > 0 ? currentPrice : lastClose;
   const candlePrices = data.flatMap((item) => [item.low, item.high, item.open, item.close].filter(Number.isFinite));
+  const minCandlePrice = candlePrices.length ? Math.min(...candlePrices) : 0;
+  const maxCandlePrice = candlePrices.length ? Math.max(...candlePrices) : 0;
   const visiblePrices = [...candlePrices, ...(Number.isFinite(anchorPrice) ? [anchorPrice] : [])];
   const minVisiblePrice = visiblePrices.length ? Math.min(...visiblePrices) : 0;
   const maxVisiblePrice = visiblePrices.length ? Math.max(...visiblePrices) : 0;
@@ -82,13 +89,20 @@ function getVisualScale(data, baseline, currentPrice) {
     (anchorPrice || maxVisiblePrice || 0) * MIN_VISIBLE_RANGE_RATIO,
     MIN_VISIBLE_RANGE_ABSOLUTE,
   );
-  const baselineGapLimit = visibleRange * BASELINE_DISTANCE_LIMIT_MULTIPLIER;
-  const rawBaselineGap = Number.isFinite(baseline) && Number.isFinite(anchorPrice) ? baseline - anchorPrice : null;
-  const baselineGap = Number.isFinite(rawBaselineGap)
-    ? clamp(rawBaselineGap, -baselineGapLimit, baselineGapLimit)
-    : null;
-  const baselineDisplayValue = Number.isFinite(baselineGap) ? anchorPrice + baselineGap : null;
   const pricePadding = Math.max(visibleRange * 0.2, (anchorPrice || maxVisiblePrice || 0) * 0.004, 240);
+  const baselineGap = Math.max(visibleRange * BASELINE_CANDLE_GAP_RATIO, BASELINE_CANDLE_GAP_ABSOLUTE);
+  let baselineDisplayValue = null;
+
+  if (Number.isFinite(baseline)) {
+    if (baseline > maxCandlePrice) {
+      baselineDisplayValue = Math.max(baseline, maxCandlePrice + baselineGap);
+    } else if (baseline < minCandlePrice) {
+      baselineDisplayValue = Math.min(baseline, minCandlePrice - baselineGap);
+    } else {
+      baselineDisplayValue = baseline;
+    }
+  }
+
   const minDomainCandidate = Number.isFinite(baselineDisplayValue)
     ? Math.min(minVisiblePrice - pricePadding, baselineDisplayValue - pricePadding)
     : minVisiblePrice - pricePadding;
@@ -138,39 +152,31 @@ function BaselineMarker({ baseline, baselineDisplayValue, minDomain, maxDomain, 
 }
 
 function CurrentPriceTag({
-  currentItem,
   currentPrice,
-  candleWidth,
   chartRight,
   minDomain,
   maxDomain,
   plotTop,
   plotHeight,
-  getXCoordinate,
 }) {
-  if (!currentItem) {
-    return null;
-  }
-
-  const currentIndex = getXCoordinate.indexOf(currentItem.timestamp);
-  const currentXValue = getXCoordinate.at(currentIndex);
   const currentY = getYCoordinate(currentPrice, minDomain, maxDomain, plotTop, plotHeight);
 
-  if (!Number.isFinite(currentXValue) || !Number.isFinite(currentY)) {
+  if (!Number.isFinite(currentY)) {
     return null;
   }
 
-  const centerX = currentXValue;
-  const tagHeight = 28;
-  const tagWidth = 94;
-  const tagGap = 18;
-  const bodyLeft = chartRight + tagGap;
-  const bodyRight = bodyLeft + tagWidth;
-  const tipX = chartRight + 4;
-  const topY = currentY - tagHeight / 2;
-  const bottomY = currentY + tagHeight / 2;
+  const clampedCenterY = clamp(
+    currentY,
+    plotTop + CURRENT_PRICE_TAG_HEIGHT / 2,
+    plotTop + plotHeight - CURRENT_PRICE_TAG_HEIGHT / 2,
+  );
+  const bodyLeft = chartRight + CURRENT_PRICE_TAG_GAP;
+  const bodyRight = bodyLeft + CURRENT_PRICE_TAG_WIDTH;
+  const tipX = chartRight + CURRENT_PRICE_TAG_TIP_OFFSET;
+  const topY = clampedCenterY - CURRENT_PRICE_TAG_HEIGHT / 2;
+  const bottomY = clampedCenterY + CURRENT_PRICE_TAG_HEIGHT / 2;
   const points = [
-    `${tipX},${currentY}`,
+    `${tipX},${clampedCenterY}`,
     `${bodyLeft},${topY}`,
     `${bodyRight},${topY}`,
     `${bodyRight},${bottomY}`,
@@ -186,8 +192,8 @@ function CurrentPriceTag({
         strokeWidth={1}
       />
       <text
-        x={bodyLeft + tagWidth / 2}
-        y={currentY}
+        x={bodyLeft + CURRENT_PRICE_TAG_WIDTH / 2}
+        y={clampedCenterY}
         fill="#ffffff"
         fontSize={12}
         fontWeight={700}
@@ -216,14 +222,6 @@ function CandleOverlay({ data, currentPrice, baseline, baselineDisplayValue, yDo
   const slotWidth = data.length > 1 ? plotWidth / (data.length - 1) : plotWidth;
   const candleWidth = Math.max(12, Math.min(24, slotWidth * 0.72));
   const xCoordinates = data.map((_, index) => plotLeft + slotWidth * index);
-  const getXCoordinate = {
-    at(index) {
-      return index >= 0 ? xCoordinates[index] : null;
-    },
-    indexOf(timestamp) {
-      return data.findIndex((item) => item.timestamp === timestamp);
-    },
-  };
 
   return (
     <svg
@@ -276,15 +274,12 @@ function CandleOverlay({ data, currentPrice, baseline, baselineDisplayValue, yDo
       })}
 
       <CurrentPriceTag
-        currentItem={data[data.length - 1]}
         currentPrice={currentPrice}
-        candleWidth={candleWidth}
         chartRight={plotRight}
         minDomain={minDomain}
         maxDomain={maxDomain}
         plotTop={plotTop}
         plotHeight={plotHeight}
-        getXCoordinate={getXCoordinate}
       />
     </svg>
   );
