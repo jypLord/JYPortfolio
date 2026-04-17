@@ -17,9 +17,9 @@ function loadStockValidatorModule() {
 }
 
 export default function AutoInvestPage() {
-  const [symbol, setSymbol] = useState("");
-  const [buyAmount, setBuyAmount] = useState("");
-  const [baseline, setBaseline] = useState("");
+  const [symbol, setSymbol] = useState("삼성전자");
+  const [buyAmount, setBuyAmount] = useState("1000000");
+  const [baseline, setBaseline] = useState("200000");
   const [savedItems, setSavedItems] = useState([]);
   const [editingItemId, setEditingItemId] = useState(null);
   const [formMessage, setFormMessage] = useState("");
@@ -177,7 +177,7 @@ export default function AutoInvestPage() {
             <div>
               <h3 className="autoSectionTitle">저장한 종목</h3>
               <p className="autoSectionDesc">
-                감시 시작을 누르면 선택된 종목의 차트를 불러옵니다.
+                감시 시작을 누르면 저장된 종목을 감시하고 차트를 불러옵니다. <br/>프로젝트에서는 10개까지 등록할 수 있지만, 샘플에서는 한 개로 제한합니다.
               </p>
             </div>
 

@@ -12,7 +12,7 @@ export default function UserInputForm({
 }) {
   return (
     <section className="aiForm">
-      <h3 className="aiFormTitle">사용자 입력</h3>
+      <h3 className="aiFormTitle">종목 정보 입력</h3>
 
       <form className="aiFormBody" onSubmit={onSubmit}>
         <div className="aiGrid">
@@ -22,7 +22,7 @@ export default function UserInputForm({
               className="aiInput"
               value={symbol}
               onChange={(event) => onChangeSymbol(event.target.value)}
-              placeholder="삼성전자"
+              placeholder="예: 삼성전자"
             />
           </label>
 
@@ -32,7 +32,7 @@ export default function UserInputForm({
               className="aiInput"
               value={buyAmount}
               onChange={(event) => onChangeBuyAmount(event.target.value)}
-              placeholder="1000000"
+              placeholder="예: 1000000"
               inputMode="numeric"
             />
           </label>
@@ -43,7 +43,7 @@ export default function UserInputForm({
               className="aiInput"
               value={baseline}
               onChange={(event) => onChangeBaseline(event.target.value)}
-              placeholder="60000"
+              placeholder="예: 200000"
               inputMode="numeric"
             />
           </label>
