@@ -15,8 +15,11 @@ const CHART_MARGIN = { top: 12, right: 12, left: 4, bottom: 28 };
 const OVERLAY_VIEWBOX_WIDTH = 1000;
 const MIN_VISIBLE_RANGE_RATIO = 0.014;
 const MIN_VISIBLE_RANGE_ABSOLUTE = 700;
-const BASELINE_CANDLE_GAP_RATIO = 0.12;
-const BASELINE_EDGE_PADDING_RATIO = 0.05;
+const BASELINE_CANDLE_GAP_RATIO = 0.035;
+const DOMAIN_PADDING_RATIO = 0.1;
+const DOMAIN_PADDING_MIN = 120;
+const BASELINE_TOP_EDGE_PADDING = 10;
+const BASELINE_BOTTOM_SAFE_GAP = 38;
 const CURRENT_PRICE_TAG_HEIGHT = 28;
 const CURRENT_PRICE_TAG_GAP = 22;
 const CURRENT_PRICE_TAG_TIP_OFFSET = 10;
@@ -91,15 +94,19 @@ function getVisualScale(data, baseline, currentPrice) {
     (anchorPrice || maxVisiblePrice || 0) * MIN_VISIBLE_RANGE_RATIO,
     MIN_VISIBLE_RANGE_ABSOLUTE,
   );
-  const pricePadding = Math.max(visibleRange * 0.2, (anchorPrice || maxVisiblePrice || 0) * 0.004, 240);
+  const pricePadding = Math.max(
+    visibleRange * DOMAIN_PADDING_RATIO,
+    (anchorPrice || maxVisiblePrice || 0) * 0.003,
+    DOMAIN_PADDING_MIN,
+  );
   const baselineGap = visibleRange * BASELINE_CANDLE_GAP_RATIO;
   let baselineDisplayValue = null;
 
   if (Number.isFinite(baseline)) {
     if (baseline > maxCandlePrice) {
-      baselineDisplayValue = Math.max(baseline, maxCandlePrice + baselineGap);
+      baselineDisplayValue = maxCandlePrice + baselineGap;
     } else if (baseline < minCandlePrice) {
-      baselineDisplayValue = Math.min(baseline, minCandlePrice - baselineGap);
+      baselineDisplayValue = minCandlePrice - baselineGap;
     } else {
       baselineDisplayValue = baseline;
     }
@@ -124,11 +131,10 @@ function BaselineMarker({ baseline, baselineDisplayValue, minDomain, maxDomain, 
   }
 
   const rawBaselineY = getYCoordinate(baselineDisplayValue, minDomain, maxDomain, plotTop, plotHeight);
-  const edgePadding = plotHeight * BASELINE_EDGE_PADDING_RATIO;
   const baselineY = clamp(
     rawBaselineY,
-    plotTop + edgePadding,
-    plotTop + plotHeight - edgePadding,
+    plotTop + BASELINE_TOP_EDGE_PADDING,
+    plotTop + plotHeight - BASELINE_BOTTOM_SAFE_GAP,
   );
 
   if (!Number.isFinite(baselineY)) {
