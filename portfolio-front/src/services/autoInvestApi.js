@@ -28,24 +28,7 @@ export function buildChartUrl(stockName) {
   return url.toString();
 }
 
-export async function fetchChartSeries(stockName, { signal } = {}) {
-  const response = await fetch(buildChartUrl(stockName), { signal });
-
-  if (!response.ok) {
-    throw new Error(`차트 요청에 실패했습니다. (${response.status})`);
-  }
-
-  const payload = await response.json();
-  const nextSeries = normalizeSeriesPayload(payload);
-
-  if (!nextSeries.length) {
-    throw new Error("수신된 차트 데이터가 없습니다.");
-  }
-
-  return nextSeries;
-}
-
-function normalizeSeriesPayload(payload) {
+export function normalizeSeriesPayload(payload) {
   const extracted = extractSeries(payload);
 
   if (extracted.length) {
@@ -56,4 +39,12 @@ function normalizeSeriesPayload(payload) {
 
   const singleItem = normalizeCandle(payload, 0);
   return singleItem ? [singleItem] : [];
+}
+
+export function normalizeChartPoint(payload) {
+  return normalizeCandle(payload, 0);
+}
+
+export function openChartEventSource(stockName) {
+  return new EventSource(buildChartUrl(stockName));
 }

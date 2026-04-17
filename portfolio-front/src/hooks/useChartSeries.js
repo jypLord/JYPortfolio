@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
 import { HAS_API_CONFIG } from "../constants/autoInvest";
-import { fetchChartSeries } from "../services/autoInvestApi";
+import {
+  normalizeChartPoint,
+  normalizeSeriesPayload,
+  openChartEventSource,
+} from "../services/autoInvestApi";
 
 const MARKET_TIME_ZONE = "Asia/Seoul";
-const MARKET_FETCH_HOUR = 15;
-const MARKET_FETCH_MINUTE = 30;
+const MARKET_OPEN_HOUR = 9;
+const MARKET_OPEN_MINUTE = 0;
+const MARKET_CLOSE_HOUR = 15;
+const MARKET_CLOSE_MINUTE = 30;
 
 function formatSeoulTime(date) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -15,30 +21,75 @@ function formatSeoulTime(date) {
   }).format(date);
 }
 
-function getMarketBoundaryParts(date) {
+function getSeoulDateParts(date) {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: MARKET_TIME_ZONE,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
   });
 
   const parts = formatter.formatToParts(date);
-  const year = Number(parts.find((part) => part.type === "year")?.value);
-  const month = Number(parts.find((part) => part.type === "month")?.value);
-  const day = Number(parts.find((part) => part.type === "day")?.value);
 
-  return { year, month, day };
+  return {
+    year: Number(parts.find((part) => part.type === "year")?.value),
+    month: Number(parts.find((part) => part.type === "month")?.value),
+    day: Number(parts.find((part) => part.type === "day")?.value),
+    hour: Number(parts.find((part) => part.type === "hour")?.value),
+    minute: Number(parts.find((part) => part.type === "minute")?.value),
+  };
 }
 
-function getSeoulTargetTime(now = new Date()) {
-  const { year, month, day } = getMarketBoundaryParts(now);
-  const utcTimestamp = Date.UTC(year, month - 1, day, MARKET_FETCH_HOUR - 9, MARKET_FETCH_MINUTE, 0, 0);
+function createSeoulDate(date, hour, minute) {
+  const { year, month, day } = getSeoulDateParts(date);
+  const utcTimestamp = Date.UTC(year, month - 1, day, hour - 9, minute, 0, 0);
   return new Date(utcTimestamp);
 }
 
-function createScheduledMessage(targetTime) {
-  return `${formatSeoulTime(targetTime)}(KST)에 차트를 1회 조회합니다.`;
+function isSnapshotWindow(now = new Date()) {
+  const { hour, minute } = getSeoulDateParts(now);
+
+  if (hour < MARKET_OPEN_HOUR) {
+    return true;
+  }
+
+  if (hour > MARKET_CLOSE_HOUR) {
+    return true;
+  }
+
+  if (hour === MARKET_CLOSE_HOUR && minute >= MARKET_CLOSE_MINUTE) {
+    return true;
+  }
+
+  return false;
+}
+
+function getNextModeTransition(now = new Date()) {
+  const snapshotMode = isSnapshotWindow(now);
+  const openTime = createSeoulDate(now, MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE);
+  const closeTime = createSeoulDate(now, MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE);
+
+  if (!snapshotMode) {
+    return closeTime;
+  }
+
+  if (now < openTime) {
+    return openTime;
+  }
+
+  const nextDay = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  return createSeoulDate(nextDay, MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE);
+}
+
+function createScheduledMessage(targetTime, snapshotMode) {
+  if (snapshotMode) {
+    return `${formatSeoulTime(targetTime)}(KST)에 실시간 연결을 시작합니다.`;
+  }
+
+  return `${formatSeoulTime(targetTime)}(KST)에 장마감 스냅샷으로 전환합니다.`;
 }
 
 function createInitialState(symbol) {
@@ -60,15 +111,39 @@ function createInitialState(symbol) {
     };
   }
 
-  const targetTime = getSeoulTargetTime();
-  const shouldFetchNow = Date.now() >= targetTime.getTime();
+  const snapshotMode = isSnapshotWindow();
 
   return {
     series: [],
-    isLoading: shouldFetchNow,
+    isLoading: true,
     fetchError: "",
-    statusMessage: shouldFetchNow ? "" : createScheduledMessage(targetTime),
+    statusMessage: snapshotMode ? "장마감 스냅샷을 불러오는 중입니다." : "실시간 차트에 연결하는 중입니다.",
   };
+}
+
+function parseEventData(event) {
+  try {
+    return JSON.parse(event.data);
+  } catch {
+    return null;
+  }
+}
+
+function upsertLatestPoint(series, nextPoint) {
+  if (!nextPoint) {
+    return series;
+  }
+
+  if (!series.length) {
+    return [nextPoint];
+  }
+
+  const lastPoint = series[series.length - 1];
+  if (lastPoint.timestamp === nextPoint.timestamp || lastPoint.time === nextPoint.time) {
+    return [...series.slice(0, -1), nextPoint];
+  }
+
+  return [...series, nextPoint];
 }
 
 export default function useChartSeries(symbol) {
@@ -80,63 +155,118 @@ export default function useChartSeries(symbol) {
       return undefined;
     }
 
-    const abortController = new AbortController();
-    const targetTime = getSeoulTargetTime();
-    const waitMs = Math.max(targetTime.getTime() - Date.now(), 0);
+    let eventSource = null;
     let timerId = null;
 
-    async function loadSeries() {
+    function clearResources() {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+
+      if (timerId !== null) {
+        window.clearTimeout(timerId);
+        timerId = null;
+      }
+    }
+
+    function scheduleReconnect(snapshotMode) {
+      const targetTime = getNextModeTransition();
+      const waitMs = Math.max(targetTime.getTime() - Date.now(), 0);
+
+      timerId = window.setTimeout(() => {
+        connect();
+      }, waitMs);
+
+      setState((currentState) => ({
+        ...currentState,
+        statusMessage: createScheduledMessage(targetTime, snapshotMode),
+      }));
+    }
+
+    function connect() {
+      clearResources();
+
+      const snapshotMode = isSnapshotWindow();
+
       setState((currentState) => ({
         ...currentState,
         isLoading: true,
         fetchError: "",
-        statusMessage: "",
+        statusMessage: snapshotMode ? "장마감 스냅샷을 불러오는 중입니다." : "실시간 차트에 연결하는 중입니다.",
       }));
 
-      try {
-        const nextSeries = await fetchChartSeries(symbol, {
-          signal: abortController.signal,
-        });
+      eventSource = openChartEventSource(symbol);
+
+      eventSource.addEventListener("initialChart", (event) => {
+        const payload = parseEventData(event);
+        const nextSeries = normalizeSeriesPayload(payload);
+
+        if (!nextSeries.length) {
+          setState((currentState) => ({
+            ...currentState,
+            isLoading: false,
+            fetchError: "수신된 차트 데이터가 없습니다.",
+            statusMessage: "",
+          }));
+          return;
+        }
+
+        if (snapshotMode) {
+          eventSource?.close();
+          eventSource = null;
+        }
 
         setState({
           series: nextSeries,
           isLoading: false,
           fetchError: "",
-          statusMessage: `차트 데이터를 ${formatSeoulTime(new Date())}(KST)에 조회했습니다.`,
+          statusMessage: snapshotMode
+            ? `장마감 스냅샷을 ${formatSeoulTime(new Date())}(KST)에 불러왔습니다.`
+            : createScheduledMessage(getNextModeTransition(), false),
         });
-      } catch (error) {
-        if (error.name === "AbortError") {
+
+        if (snapshotMode) {
+          scheduleReconnect(true);
+        }
+      });
+
+      eventSource.addEventListener("stockPrice", (event) => {
+        if (snapshotMode) {
           return;
         }
 
-        setState({
-          series: [],
+        const payload = parseEventData(event);
+        const nextPoint = normalizeChartPoint(payload);
+
+        if (!nextPoint) {
+          return;
+        }
+
+        setState((currentState) => ({
+          series: upsertLatestPoint(currentState.series, nextPoint),
           isLoading: false,
-          fetchError: `차트 데이터를 불러오지 못했습니다. ${error.message}`,
+          fetchError: "",
+          statusMessage: createScheduledMessage(getNextModeTransition(), false),
+        }));
+      });
+
+      eventSource.onerror = () => {
+        clearResources();
+
+        setState((currentState) => ({
+          ...currentState,
+          isLoading: false,
+          fetchError: "차트 스트림 연결에 실패했습니다.",
           statusMessage: "",
-        });
-      }
+        }));
+      };
     }
 
-    setState({
-      series: [],
-      isLoading: waitMs === 0,
-      fetchError: "",
-      statusMessage: waitMs === 0 ? "" : createScheduledMessage(targetTime),
-    });
-
-    if (waitMs === 0) {
-      loadSeries();
-    } else {
-      timerId = window.setTimeout(loadSeries, waitMs);
-    }
+    connect();
 
     return () => {
-      abortController.abort();
-
-      if (timerId !== null) {
-        window.clearTimeout(timerId);
-      }
+      clearResources();
     };
   }, [symbol]);
 
