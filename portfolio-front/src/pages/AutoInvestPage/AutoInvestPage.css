@@ -140,11 +140,16 @@
 .autoWatchSymbol{
   color: var(--text);
   font-weight: 800;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .autoWatchMeta{
   color: var(--muted);
   font-size: 13px;
+  min-width: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .autoChartSection{
@@ -278,7 +283,29 @@
   }
 
   .autoWatchItem{
-    grid-template-columns: 32px 1fr;
+    grid-template-columns: 32px minmax(0, 1fr);
+    grid-template-areas:
+      "index symbol"
+      "index amount"
+      "index baseline";
+    align-items: start;
+  }
+
+  .autoWatchIndex{
+    grid-area: index;
+    align-self: start;
+  }
+
+  .autoWatchSymbol{
+    grid-area: symbol;
+  }
+
+  .autoWatchMeta:nth-of-type(1){
+    grid-area: amount;
+  }
+
+  .autoWatchMeta:nth-of-type(2){
+    grid-area: baseline;
   }
 
   .autoChartGrid{
@@ -304,6 +331,20 @@
 }
 
 @media (max-width: 640px){
+  .autoMain{
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .autoWatchSection{
+    padding: 14px;
+  }
+
+  .autoWatchItem{
+    gap: 6px 10px;
+    padding: 12px;
+  }
+
   .autoChartGrid{
     grid-template-columns: 1fr;
   }

@@ -17,10 +17,12 @@ const MIN_VISIBLE_RANGE_RATIO = 0.014;
 const MIN_VISIBLE_RANGE_ABSOLUTE = 700;
 const BASELINE_CANDLE_GAP_RATIO = 0.12;
 const BASELINE_CANDLE_GAP_ABSOLUTE = 180;
-const CURRENT_PRICE_TAG_WIDTH = 94;
 const CURRENT_PRICE_TAG_HEIGHT = 28;
 const CURRENT_PRICE_TAG_GAP = 22;
 const CURRENT_PRICE_TAG_TIP_OFFSET = 10;
+const CURRENT_PRICE_TAG_HORIZONTAL_PADDING = 12;
+const CURRENT_PRICE_TAG_MIN_WIDTH = 44;
+const CURRENT_PRICE_TAG_MAX_WIDTH = 88;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -170,8 +172,15 @@ function CurrentPriceTag({
     plotTop + CURRENT_PRICE_TAG_HEIGHT / 2,
     plotTop + plotHeight - CURRENT_PRICE_TAG_HEIGHT / 2,
   );
+  const label = Number(currentPrice).toLocaleString();
+  const estimatedTextWidth = label.length * 7;
+  const bodyWidth = clamp(
+    estimatedTextWidth + CURRENT_PRICE_TAG_HORIZONTAL_PADDING * 2,
+    CURRENT_PRICE_TAG_MIN_WIDTH,
+    CURRENT_PRICE_TAG_MAX_WIDTH,
+  );
   const bodyLeft = chartRight + CURRENT_PRICE_TAG_GAP;
-  const bodyRight = bodyLeft + CURRENT_PRICE_TAG_WIDTH;
+  const bodyRight = bodyLeft + bodyWidth;
   const tipX = chartRight + CURRENT_PRICE_TAG_TIP_OFFSET;
   const topY = clampedCenterY - CURRENT_PRICE_TAG_HEIGHT / 2;
   const bottomY = clampedCenterY + CURRENT_PRICE_TAG_HEIGHT / 2;
@@ -192,7 +201,7 @@ function CurrentPriceTag({
         strokeWidth={1}
       />
       <text
-        x={bodyLeft + CURRENT_PRICE_TAG_WIDTH / 2}
+        x={bodyLeft + bodyWidth / 2}
         y={clampedCenterY}
         fill="#ffffff"
         fontSize={12}
@@ -200,7 +209,7 @@ function CurrentPriceTag({
         textAnchor="middle"
         dominantBaseline="central"
       >
-        {Number(currentPrice).toLocaleString()}
+        {label}
       </text>
     </g>
   );

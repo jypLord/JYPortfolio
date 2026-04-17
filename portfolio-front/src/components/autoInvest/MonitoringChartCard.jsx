@@ -28,6 +28,28 @@ function hasReachedBaseline(previousPrice, nextPrice, baseline) {
   );
 }
 
+function applySimulatedPriceToSeries(series, simulatedPrice) {
+  if (!series.length || !Number.isFinite(simulatedPrice) || simulatedPrice <= 0) {
+    return series;
+  }
+
+  const lastIndex = series.length - 1;
+  const lastCandle = series[lastIndex];
+
+  if (!lastCandle || lastCandle.close === simulatedPrice) {
+    return series;
+  }
+
+  const nextCandle = {
+    ...lastCandle,
+    close: simulatedPrice,
+    high: Math.max(lastCandle.high, simulatedPrice),
+    low: Math.min(lastCandle.low, simulatedPrice),
+  };
+
+  return [...series.slice(0, lastIndex), nextCandle];
+}
+
 export default function MonitoringChartCard({ item }) {
   const {
     series,
@@ -42,6 +64,7 @@ export default function MonitoringChartCard({ item }) {
   const executionHideTimerRef = useRef(null);
   const hasSeries = series.length > 0;
   const latestClose = series[series.length - 1]?.close;
+  const displayedSeries = applySimulatedPriceToSeries(series, simulatedPrice);
 
   function showExecutionNotice() {
     if (executionHideTimerRef.current) {
@@ -140,7 +163,7 @@ export default function MonitoringChartCard({ item }) {
       <div className="autoChartBody">
         {hasSeries ? (
           <PriceChart
-            data={series}
+            data={displayedSeries}
             baseline={item.baseline}
             currentPrice={simulatedPrice}
             isExecuted={isExecuted}
