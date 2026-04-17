@@ -42,9 +42,10 @@ function applySimulatedPriceToSeries(series, simulatedPrice) {
 
   const nextCandle = {
     ...lastCandle,
+    open: simulatedPrice,
+    high: simulatedPrice,
+    low: simulatedPrice,
     close: simulatedPrice,
-    high: Math.max(lastCandle.high, simulatedPrice),
-    low: Math.min(lastCandle.low, simulatedPrice),
   };
 
   return [...series.slice(0, lastIndex), nextCandle];
