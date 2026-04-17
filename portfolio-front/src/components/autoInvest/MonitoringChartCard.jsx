@@ -29,7 +29,12 @@ function hasReachedBaseline(previousPrice, nextPrice, baseline) {
 }
 
 export default function MonitoringChartCard({ item }) {
-  const { series, isLoading, fetchError } = useChartSeries(item.symbol);
+  const {
+    series,
+    isLoading,
+    fetchError,
+    statusMessage,
+  } = useChartSeries(item.symbol);
   const [simulatedPrice, setSimulatedPrice] = useState(null);
   const [isExecuted, setIsExecuted] = useState(false);
   const [hoveredAction, setHoveredAction] = useState("");
@@ -144,8 +149,11 @@ export default function MonitoringChartCard({ item }) {
       </div>
 
       {isLoading ? <p className="autoChartStatus">{"\uBD88\uB7EC\uC624\uB294 \uC911..."}</p> : null}
+      {!isLoading && !fetchError && statusMessage ? (
+        <p className="autoChartStatus">{statusMessage}</p>
+      ) : null}
       {fetchError ? <p className="autoChartStatus isError">{fetchError}</p> : null}
-      {!isLoading && !fetchError && !hasSeries ? (
+      {!isLoading && !fetchError && !statusMessage && !hasSeries ? (
         <p className="autoChartStatus">{"\uC218\uC2E0\uB41C \uCC28\uD2B8 \uB370\uC774\uD130\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4."}</p>
       ) : null}
     </article>

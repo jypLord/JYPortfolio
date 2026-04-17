@@ -28,6 +28,23 @@ export function buildChartUrl(stockName) {
   return url.toString();
 }
 
+export async function fetchChartSeries(stockName, { signal } = {}) {
+  const response = await fetch(buildChartUrl(stockName), { signal });
+
+  if (!response.ok) {
+    throw new Error(`차트 요청에 실패했습니다. (${response.status})`);
+  }
+
+  const payload = await response.json();
+  const nextSeries = normalizeSeriesPayload(payload);
+
+  if (!nextSeries.length) {
+    throw new Error("수신된 차트 데이터가 없습니다.");
+  }
+
+  return nextSeries;
+}
+
 function normalizeSeriesPayload(payload) {
   const extracted = extractSeries(payload);
 
@@ -39,55 +56,4 @@ function normalizeSeriesPayload(payload) {
 
   const singleItem = normalizeCandle(payload, 0);
   return singleItem ? [singleItem] : [];
-}
-
-const MAX_CANDLE_COUNT = 11;
-
-function mergeSeries(currentSeries, incomingSeries, limit = MAX_CANDLE_COUNT) {
-  const byTimestamp = new Map(
-    currentSeries.map((item) => [item.timestamp, item]),
-  );
-
-  incomingSeries.forEach((item) => {
-    byTimestamp.set(item.timestamp, item);
-  });
-
-  return Array.from(byTimestamp.values())
-    .sort((left, right) => String(left.timestamp).localeCompare(String(right.timestamp)))
-    .slice(-limit);
-}
-
-export function openChartSeriesStream(stockName, { onData, onError }) {
-  const eventSource = new EventSource(buildChartUrl(stockName));
-
-  function handleIncomingEvent(event) {
-    try {
-      const payload = JSON.parse(event.data);
-      const nextSeries = normalizeSeriesPayload(payload);
-
-      if (!nextSeries.length) {
-        return;
-      }
-
-      onData(nextSeries);
-    } catch (error) {
-      onError(error);
-    }
-  }
-
-  eventSource.onmessage = handleIncomingEvent;
-  eventSource.addEventListener("initialChart", handleIncomingEvent);
-  eventSource.addEventListener("stockPrice", handleIncomingEvent);
-
-  eventSource.onerror = () => {
-    onError(new Error("SSE 연결에 실패했습니다."));
-    eventSource.close();
-  };
-
-  return {
-    close() {
-      eventSource.close();
-    },
-    mergeSeries,
-  };
 }
